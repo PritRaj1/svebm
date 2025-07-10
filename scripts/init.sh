@@ -51,6 +51,7 @@ fi
 echo -e "${GREEN}Activating environment...${NC}"
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate SV-EBM
+conda install -c conda-forge tmux -y
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to activate conda environment${NC}"

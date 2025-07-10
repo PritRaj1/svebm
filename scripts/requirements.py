@@ -6,9 +6,14 @@ def install(package):
 
 requirements = [
     "torch",
-    "torchvision",
+    "torchvision", 
     "torchaudio",
-    "lightning",
+    "lightning[pytorch-extra]",
+    "matplotlib",
+    "seaborn",
+    "numpy",
+    "pandas",
+    "pytest",
 ]
 
 def main():
