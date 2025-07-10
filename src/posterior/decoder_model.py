@@ -3,11 +3,11 @@ import torch.nn as nn
 import lightning as L
 from src.utils import get_activation
 
-class EncoderModel(L.LightningModule):
+class DecoderModel(L.LightningModule):
     def __init__(
         self,
         input_dim: int,
-        latent_dim: int,
+        output_dim: int,
         hidden_layers: list = [128, 128],
         nhead: int = 4,
         dropout: float = 0.1,
@@ -16,7 +16,7 @@ class EncoderModel(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.input_dim = input_dim
-        self.latent_dim = latent_dim
+        self.output_dim = output_dim
         self.nhead = nhead
         self.dropout = dropout
         self.activation = activation
@@ -27,7 +27,7 @@ class EncoderModel(L.LightningModule):
         layers.append(get_activation(self.activation))
 
         for hidden_dim in self.hidden_layers[1:]:
-            layers.append(nn.TransformerEncoderLayer(
+            layers.append(nn.TransformerDecoderLayer(
                 d_model=hidden_dim,
                 nhead=self.nhead,
                 dim_feedforward=hidden_dim,
@@ -36,12 +36,12 @@ class EncoderModel(L.LightningModule):
             ))
 
         # Output projection
-        layers.append(nn.Linear(self.hidden_layers[-1], self.latent_dim))
+        layers.append(nn.Linear(self.hidden_layers[-1], self.output_dim))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         x: (batch, seq_len, input_dim)
-        output: (batch, seq_len, latent_dim)
+        output: (batch, seq_len, output_dim)
         """
-        return self.model(x)
+        return self.model(x) 
