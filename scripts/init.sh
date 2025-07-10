@@ -5,7 +5,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${GREEN}Creating SV-EBM environment...${NC}"
+echo -e "${GREEN}Setting up SV-EBM development environment...${NC}"
 
 if ! command -v conda &> /dev/null; then
     echo -e "${RED}Error: conda is not installed or not in PATH${NC}"
@@ -26,22 +26,28 @@ else
     echo -e "${YELLOW}Warning: Could not determine conda type, proceeding anyway${NC}"
 fi
 
-if conda env list | grep -q "SV-EBM"; then
-    echo -e "${YELLOW}Environment 'SV-EBM' already exists. Do you want to remove it and recreate? (y/N)${NC}"
+ENV_NAME="SV-EBM"
+
+if conda env list | grep -q "$ENV_NAME"; then
+    echo -e "${YELLOW}Environment '$ENV_NAME' already exists. Do you want to remove it and recreate? (y/N)${NC}"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         echo -e "${GREEN}Removing existing environment...${NC}"
-        conda env remove -n SV-EBM -y
+        conda env remove -n "$ENV_NAME" -y
     else
         echo -e "${YELLOW}Using existing environment. Activating...${NC}"
-        conda activate SV-EBM
+        source "$(conda info --base)/etc/profile.d/conda.sh"
+        conda activate "$ENV_NAME"
         echo -e "${GREEN}Environment activated successfully!${NC}"
+        echo -e "${GREEN}Installing/updating dependencies...${NC}"
+        pip install -e ".[dev]"
+        echo -e "${GREEN}Setup completed!${NC}"
         exit 0
     fi
 fi
 
-echo -e "${GREEN}Creating new conda environment 'SV-EBM'...${NC}"
-conda create -n SV-EBM python=3.11 -y
+echo -e "${GREEN}Creating new conda environment '$ENV_NAME'...${NC}"
+conda create -n "$ENV_NAME" python=3.11 -y
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to create conda environment${NC}"
@@ -49,23 +55,51 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -e "${GREEN}Activating environment...${NC}"
-source $(conda info --base)/etc/profile.d/conda.sh
-conda activate SV-EBM
-conda install -c conda-forge tmux -y
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$ENV_NAME"
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to activate conda environment${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}Installing requirements...${NC}"
+echo -e "${GREEN}Installing tmux for development sessions...${NC}"
+conda install -c conda-forge tmux -y
+
+echo -e "${GREEN}Installing project dependencies...${NC}"
 cd "$(dirname "$0")/.."
-python scripts/requirements.py
+
+pip install -e ".[dev]"
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Setup completed successfully!${NC}"
-    echo -e "${GREEN}To activate the environment, run: conda activate SV-EBM${NC}"
+    echo -e "${GREEN}✓ Dependencies installed successfully!${NC}"
+    
+    echo -e "${GREEN}Testing installation...${NC}"
+    python -c "
+        import torch
+        import lightning
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from src.model import SVEBM
+        from src.data import TextDataModule
+
+        print('✓ All imports successful!')
+        print(f'✓ PyTorch version: {torch.__version__}')
+        print(f'✓ Lightning version: {lightning.__version__}')
+
+        if torch.cuda.is_available():
+            print(f'✓ CUDA available: {torch.cuda.get_device_name(0)}')
+        else:
+            print('✓ Using CPU (CUDA not available)')
+"
+    
+    echo -e "${GREEN}✓ Setup completed successfully!${NC}"
+    echo -e "${GREEN}To activate the environment, run: conda activate $ENV_NAME${NC}"
+    echo -e "${GREEN}To run tests: make test${NC}"
+    echo -e "${GREEN}To start development session: make dev${NC}"
 else
-    echo -e "${RED}Failed to install requirements${NC}"
+    echo -e "${RED}✗ Failed to install dependencies${NC}"
     exit 1
 fi

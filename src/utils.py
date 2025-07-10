@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+
 def get_activation(name: str):
     activations = {
         "relu": nn.ReLU,
@@ -11,8 +12,8 @@ def get_activation(name: str):
         "selu": nn.SELU,
         "celu": nn.CELU,
     }
-    
+
     if name not in activations:
         raise ValueError(f"Unknown activation: {name}")
-    
+
     return activations[name]()

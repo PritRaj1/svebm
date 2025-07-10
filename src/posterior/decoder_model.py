@@ -3,6 +3,7 @@ import torch.nn as nn
 import lightning as L
 from src.utils import get_activation
 
+
 class DecoderModel(L.LightningModule):
     def __init__(
         self,
@@ -11,7 +12,7 @@ class DecoderModel(L.LightningModule):
         hidden_layers: list = [128, 128],
         nhead: int = 4,
         dropout: float = 0.1,
-        activation: str = "relu"
+        activation: str = "relu",
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -27,13 +28,15 @@ class DecoderModel(L.LightningModule):
         layers.append(get_activation(self.activation))
 
         for hidden_dim in self.hidden_layers[1:]:
-            layers.append(nn.TransformerDecoderLayer(
-                d_model=hidden_dim,
-                nhead=self.nhead,
-                dim_feedforward=hidden_dim,
-                dropout=self.dropout,
-                activation=self.activation
-            ))
+            layers.append(
+                nn.TransformerDecoderLayer(
+                    d_model=hidden_dim,
+                    nhead=self.nhead,
+                    dim_feedforward=hidden_dim,
+                    dropout=self.dropout,
+                    activation=self.activation,
+                )
+            )
 
         # Output projection
         layers.append(nn.Linear(self.hidden_layers[-1], self.output_dim))
@@ -44,4 +47,4 @@ class DecoderModel(L.LightningModule):
         x: (batch, seq_len, input_dim)
         output: (batch, seq_len, output_dim)
         """
-        return self.model(x) 
+        return self.model(x)

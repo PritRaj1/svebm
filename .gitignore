@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Distribution
+build/
+dist/
+*.egg-info/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Environments
+.env
+.venv/
+venv/
+
+# Torch stuff
+logs/
+*.ckpt
+*.pth
+*.pt
+wandb/
+lightning_logs/
+
+# Data
+data/
+*.csv
+*.json
+*.pkl
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
