@@ -1,8 +1,9 @@
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader, Dataset, random_split
-from typing import Optional, Callable, Any, Dict, Union
-import torch
 import logging
+from typing import Any, Callable, Dict, Optional, Union
+
+import pytorch_lightning as pl
+import torch
+from torch.utils.data import DataLoader, Dataset, random_split
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 import pytest
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+
 from src.data import TextDataModule
 
 

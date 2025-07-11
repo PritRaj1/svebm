@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
+
 from src.prior.ebm_model import EBMModel
 from src.prior.unadjusted_langevin import ula
 

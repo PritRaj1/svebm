@@ -1,5 +1,5 @@
-import torch
 import lightning as L
+import torch
 
 
 class SVEBM(L.LightningModule):
