@@ -11,11 +11,15 @@ class EBMModel(L.LightningModule):
         output_dim: int,
         hidden_layers: list = [128, 128],
         activation: str = "relu",
+        eta: float = 1.0,
+        N: int = 1,
     ):
         super().__init__()
         self.save_hyperparameters()
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.eta = eta  # ULA step size
+        self.N = N  # Number of ULA steps
 
         layers = []
         prev_dim = input_dim

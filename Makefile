@@ -1,4 +1,4 @@
-.PHONY: install clean test dev train format lint logs
+.PHONY: install clean test dev train format lint logs clear-logs
 
 ENV_NAME = SV-EBM
 CONDA_BASE := $(shell conda info --base 2>/dev/null || echo "")
@@ -10,6 +10,7 @@ help:
 	@echo "  clean    - Remove conda environment"
 	@echo "  test     - Run tests in tmux session with logging"
 	@echo "  logs     - View latest test log"
+	@echo "  clear-logs - Remove all log files"
 	@echo "  dev      - Start development session"
 	@echo "  train    - Start training session"
 	@echo "  format   - Format code"
@@ -67,4 +68,13 @@ logs:
 		ls -t logs/pytest_*.log 2>/dev/null | head -1 | xargs cat 2>/dev/null || echo "No test logs found"; \
 	else \
 		echo "No logs directory or no log files found"; \
+	fi
+
+clear-logs:
+	@if [ -d "logs" ]; then \
+		echo "Removing all log files..."; \
+		rm -rf logs/*; \
+		echo "Logs cleared."; \
+	else \
+		echo "No logs directory found."; \
 	fi
