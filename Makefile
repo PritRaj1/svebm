@@ -1,4 +1,4 @@
-.PHONY: install clean test dev train format lint
+.PHONY: install clean test dev train format lint logs
 
 ENV_NAME = SV-EBM
 CONDA_BASE := $(shell conda info --base 2>/dev/null || echo "")
@@ -8,7 +8,8 @@ help:
 	@echo "Available targets:"
 	@echo "  install  - Set up conda environment and install dependencies"
 	@echo "  clean    - Remove conda environment"
-	@echo "  test     - Run tests"
+	@echo "  test     - Run tests in tmux session with logging"
+	@echo "  logs     - View latest test log"
 	@echo "  dev      - Start development session"
 	@echo "  train    - Start training session"
 	@echo "  format   - Format code"
@@ -33,7 +34,12 @@ define conda_run
 endef
 
 test:
-	$(call conda_run,python -m pytest tests/ -v)
+	@mkdir -p logs
+	@tmux kill-session -t svebm_test 2>/dev/null || true
+	@tmux new-session -d -s svebm_test -n testing
+	@tmux send-keys -t svebm_test:testing "if [ -f '$(CONDA_ACTIVATE)' ]; then . '$(CONDA_ACTIVATE)' && conda activate $(ENV_NAME) && python -m pytest tests/ -v 2>&1 | tee logs/pytest_$(shell date +%Y%m%d_%H%M%S).log; else conda activate $(ENV_NAME) && python -m pytest tests/ -v 2>&1 | tee logs/pytest_$(shell date +%Y%m%d_%H%M%S).log; fi" Enter
+	@echo "Test session started in tmux. Attach with: tmux attach-session -t svebm_test"
+	@echo "Log file: logs/pytest_$(shell date +%Y%m%d_%H%M%S).log"
 
 dev:
 	@tmux kill-session -t svebm_dev 2>/dev/null || true
@@ -54,3 +60,11 @@ format:
 
 lint:
 	$(call conda_run,flake8 src/ tests/)
+
+logs:
+	@if [ -d "logs" ] && [ -n "$$(ls -A logs 2>/dev/null)" ]; then \
+		echo "Latest test log:"; \
+		ls -t logs/pytest_*.log 2>/dev/null | head -1 | xargs cat 2>/dev/null || echo "No test logs found"; \
+	else \
+		echo "No logs directory or no log files found"; \
+	fi
