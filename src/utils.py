@@ -1,5 +1,5 @@
 import torch.nn as nn
-from typing import Literal, Union
+from typing import Literal, Union, cast
 
 ActivationType = Union[
     nn.ReLU, nn.GELU, nn.Tanh, nn.Sigmoid, nn.Softplus, nn.Softsign, nn.SELU, nn.CELU
@@ -9,7 +9,7 @@ ActivationName = Literal[
 ]
 
 
-def get_activation(name: ActivationName) -> ActivationType:
+def get_activation(name: str) -> ActivationType:
     activations = {
         "relu": nn.ReLU,
         "gelu": nn.GELU,
@@ -24,4 +24,4 @@ def get_activation(name: ActivationName) -> ActivationType:
     if name not in activations:
         raise ValueError(f"Unknown activation: {name}")
 
-    return activations[name]()
+    return cast(ActivationType, activations[name]())

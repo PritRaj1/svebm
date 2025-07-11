@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn as nn
+from typing import Any, cast
 
 from src.utils import get_activation
 
@@ -22,7 +23,7 @@ class EBMModel(L.LightningModule):
         self.eta = eta  # ULA step size
         self.N = N  # Number of ULA steps
 
-        layers = []
+        layers: list[Any] = []
         prev_dim = input_dim
 
         for h in hidden_layers:
@@ -34,4 +35,4 @@ class EBMModel(L.LightningModule):
         self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        return cast(torch.Tensor, self.model(x))

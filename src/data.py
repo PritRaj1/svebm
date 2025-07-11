@@ -68,9 +68,9 @@ class TextDataModule(pl.LightningDataModule):
             if isinstance(sample, dict):
                 if "input_ids" in sample:
                     if hasattr(dataset, "features") and "input_ids" in dataset.features:
-                        return dataset.features["input_ids"].feature.shape[-1]
+                        return int(dataset.features["input_ids"].feature.shape[-1])
                     else:
-                        return len(sample["input_ids"])
+                        return int(len(sample["input_ids"]))
                 elif "text" in sample:
                     logger.warning(
                         "Raw text detected. Please provide tokenizer in "
@@ -80,14 +80,14 @@ class TextDataModule(pl.LightningDataModule):
                 else:
                     for key, value in sample.items():
                         if isinstance(value, torch.Tensor):
-                            return value.shape[-1]
+                            return int(value.shape[-1])
 
             elif isinstance(sample, torch.Tensor):
-                return sample.shape[-1]
+                return int(sample.shape[-1])
             elif isinstance(sample, (list, tuple)):
                 if len(sample) > 0:
                     if isinstance(sample[0], torch.Tensor):
-                        return sample[0].shape[-1]
+                        return int(sample[0].shape[-1])
 
             logger.warning(
                 "Could not detect data dimension automatically. " + "Using default 768."
@@ -110,6 +110,9 @@ class TextDataModule(pl.LightningDataModule):
             if self.auto_detect_dim:
                 self.data_dim = self._detect_data_dimension(full_dataset)
                 logger.info(f"Auto-detected data dimension: {self.data_dim}")
+
+            if not hasattr(full_dataset, "__len__"):
+                raise ValueError("Dataset must implement __len__ method")
 
             dataset_len = len(full_dataset)
             val_len = (

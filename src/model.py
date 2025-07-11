@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 
 import lightning as L
 import torch
@@ -24,8 +24,11 @@ class SVEBM(L.LightningModule):
 
         if latent_dim is None:
             if hasattr(self.enc, "latent_dim"):
-                latent_dim = self.enc.latent_dim
-                assert isinstance(latent_dim, int), "latent_dim must be an integer"
+                attr_value = getattr(self.enc, "latent_dim")
+                if isinstance(attr_value, int):
+                    latent_dim = attr_value
+                else:
+                    raise ValueError("latent_dim attribute must be an integer")
             else:
                 raise ValueError(
                     "latent_dim must be provided or encoder must have "
@@ -37,8 +40,11 @@ class SVEBM(L.LightningModule):
 
         if data_dim is None:
             if hasattr(self.enc, "input_dim"):
-                data_dim = self.enc.input_dim
-                assert isinstance(data_dim, int), "data_dim must be an integer"
+                attr_value = getattr(self.enc, "input_dim")
+                if isinstance(attr_value, int):
+                    data_dim = attr_value
+                else:
+                    raise ValueError("input_dim attribute must be an integer")
             else:
                 raise ValueError(
                     "data_dim must be provided or encoder must have "
@@ -107,7 +113,7 @@ class SVEBM(L.LightningModule):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        z = self.enc(x)
-        ebm_out = self.ebm(z)
-        x_hat = self.dec(ebm_out)
+        z = cast(torch.Tensor, self.enc(x))
+        ebm_out = cast(torch.Tensor, self.ebm(z))
+        x_hat = cast(torch.Tensor, self.dec(ebm_out))
         return x_hat

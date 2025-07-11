@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn as nn
+from typing import Any, cast
 
 from src.utils import get_activation
 
@@ -25,7 +26,7 @@ class DecoderModel(L.LightningModule):
         self.hidden_layers = hidden_layers
 
         # Input projection
-        layers = [nn.Linear(self.input_dim, self.hidden_layers[0])]
+        layers: list[Any] = [nn.Linear(self.input_dim, self.hidden_layers[0])]
         layers.append(get_activation(self.activation))
 
         for hidden_dim in self.hidden_layers[1:]:
@@ -48,4 +49,4 @@ class DecoderModel(L.LightningModule):
         x: (batch, seq_len, input_dim)
         output: (batch, seq_len, output_dim)
         """
-        return self.model(x)
+        return cast(torch.Tensor, self.model(x))
