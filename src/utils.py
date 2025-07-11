@@ -1,5 +1,6 @@
-import torch.nn as nn
 from typing import Literal, Union, cast
+
+import torch.nn as nn
 
 ActivationType = Union[
     nn.ReLU, nn.GELU, nn.Tanh, nn.Sigmoid, nn.Softplus, nn.Softsign, nn.SELU, nn.CELU
