@@ -1,6 +1,7 @@
+from typing import Optional
+
 import lightning as L
 import torch
-from typing import Optional
 
 
 class SVEBM(L.LightningModule):
