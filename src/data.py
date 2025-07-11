@@ -53,7 +53,7 @@ class TextDataModule(pl.LightningDataModule):
 
         self.generator = torch.Generator().manual_seed(self.seed)
 
-    def prepare_data(self):
+    def prepare_data(self) -> None:
         try:
             self.dataset_cls(**self.dataset_kwargs)
             logger.info("Dataset prepared successfully")
@@ -100,7 +100,7 @@ class TextDataModule(pl.LightningDataModule):
             )
             return 768
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: Optional[str] = None) -> None:
         """Called on every process in Lightning's DDPStrategy."""
 
         # Training splits
@@ -159,7 +159,7 @@ class TextDataModule(pl.LightningDataModule):
         elif stage == "predict":
             self.data_train = self.dataset_cls(**self.dataset_kwargs)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         if self.data_train is None:
             raise RuntimeError("Dataset not set up. Call setup() first.")
 
@@ -174,7 +174,7 @@ class TextDataModule(pl.LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> Optional[DataLoader]:
         if self.data_val is None:
             return None
 
@@ -189,7 +189,7 @@ class TextDataModule(pl.LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> Optional[DataLoader]:
         if self.data_test is None:
             return None
 
@@ -204,7 +204,7 @@ class TextDataModule(pl.LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
-    def predict_dataloader(self):
+    def predict_dataloader(self) -> DataLoader:
         if self.data_train is None:
             raise RuntimeError("Dataset not set up. Call setup() first.")
 

@@ -25,6 +25,7 @@ class SVEBM(L.LightningModule):
         if latent_dim is None:
             if hasattr(self.enc, "latent_dim"):
                 latent_dim = self.enc.latent_dim
+                assert isinstance(latent_dim, int), "latent_dim must be an integer"
             else:
                 raise ValueError(
                     "latent_dim must be provided or encoder must have "
@@ -37,11 +38,17 @@ class SVEBM(L.LightningModule):
         if data_dim is None:
             if hasattr(self.enc, "input_dim"):
                 data_dim = self.enc.input_dim
+                assert isinstance(data_dim, int), "data_dim must be an integer"
             else:
                 raise ValueError(
                     "data_dim must be provided or encoder must have "
                     "input_dim attribute"
                 )
+
+        # At this point, all dimensions should be int, not Optional[int]
+        assert isinstance(data_dim, int)
+        assert isinstance(latent_dim, int)
+        assert isinstance(ebm_out_dim, int)
 
         self._validate_dimensions(data_dim, latent_dim, ebm_out_dim)
 
