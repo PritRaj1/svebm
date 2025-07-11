@@ -1,9 +1,9 @@
 # svebm
-Unsupervised meta-learning model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), optimised with Ligtning and TorchDynamo.
+Unsupervised meta-learning model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), optimised with Ligtning and TorchInductor.
 
 ## Setup
 
-Requires conda, (for easy packaging), and any C++ compiler, (for TorchDynamo). Otherwise, install/uninstall is automated with:
+Requires conda, (for easy packaging), and any C++ compiler, (for TorchInductor). Otherwise, install/uninstall is automated with:
 ```bash
 make install # Create conda environment SV-EBM
 make uninstall # Removes conda environment SV-EBM
