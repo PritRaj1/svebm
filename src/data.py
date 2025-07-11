@@ -55,7 +55,7 @@ class TextDataModule(pl.LightningDataModule):
     def prepare_data(self):
         try:
             self.dataset_cls(**self.dataset_kwargs)
-            logger.info(f"Dataset prepared successfully")
+            logger.info("Dataset prepared successfully")
         except Exception as e:
             logger.warning(f"Error in prepare_data: {e}")
 
@@ -72,7 +72,8 @@ class TextDataModule(pl.LightningDataModule):
                         return len(sample["input_ids"])
                 elif "text" in sample:
                     logger.warning(
-                        "Raw text detected. Please provide tokenizer in collate_fn for dimension detection."
+                        "Raw text detected. Please provide tokenizer in "
+                        "collate_fn for dimension detection."
                     )
                     return 768  # Default BERT dimension
                 else:
@@ -88,12 +89,14 @@ class TextDataModule(pl.LightningDataModule):
                         return sample[0].shape[-1]
 
             logger.warning(
-                "Could not detect data dimension automatically. Using default 768."
+                "Could not detect data dimension automatically. " + "Using default 768."
             )
             return 768
 
         except Exception as e:
-            logger.warning(f"Error detecting data dimension: {e}. Using default 768.")
+            logger.warning(
+                f"Error detecting data dimension: {e}." + "Using default 768."
+            )
             return 768
 
     def setup(self, stage: Optional[str] = None):
@@ -122,7 +125,8 @@ class TextDataModule(pl.LightningDataModule):
 
             if train_len <= 0:
                 raise ValueError(
-                    f"Invalid splits: train_len={train_len}, val_len={val_len}, test_len={test_len}"
+                    f"Invalid splits: train_len={train_len}, "
+                    f"val_len={val_len}, test_len={test_len}"
                 )
 
             if self.shuffle:
@@ -132,12 +136,17 @@ class TextDataModule(pl.LightningDataModule):
                     generator=self.generator,
                 )
             else:
-                splits = random_split(full_dataset, [train_len, val_len, test_len])
+                splits = random_split(
+                    full_dataset,
+                    [train_len, val_len, test_len],
+                    generator=self.generator,
+                )
 
             self.data_train, self.data_val, self.data_test = splits
 
             logger.info(
-                f"Dataset splits - Train: {len(self.data_train)}, Val: {len(self.data_val)}, Test: {len(self.data_test)}"
+                f"Dataset splits - Train: {len(self.data_train)}, "
+                f"Val: {len(self.data_val)}, Test: {len(self.data_test)}"
             )
 
         # Validation splits

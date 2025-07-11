@@ -16,9 +16,9 @@ def ula(ebm: EBMModel, z: torch.Tensor) -> torch.Tensor:
     """
     eta = ebm.eta
     N = ebm.N
-    sqrt_eta = eta ** 0.5
+    sqrt_eta = eta**0.5
 
-    z = z.detach() 
+    z = z.detach()
     for _ in range(N):
         z.requires_grad_(True)
         energy = ebm(z).sum()
@@ -27,4 +27,3 @@ def ula(ebm: EBMModel, z: torch.Tensor) -> torch.Tensor:
         z = (z - 0.5 * eta * grad + sqrt_eta * noise).detach()
 
     return z
-
