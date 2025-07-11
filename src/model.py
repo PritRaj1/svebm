@@ -1,5 +1,6 @@
 import lightning as L
 import torch
+from typing import Optional
 
 
 class SVEBM(L.LightningModule):
@@ -9,9 +10,9 @@ class SVEBM(L.LightningModule):
         encoder_model: L.LightningModule,
         decoder_model: L.LightningModule,
         learning_rate: float = 1e-3,
-        data_dim: int = None,
-        latent_dim: int = None,
-        ebm_out_dim: int = None,
+        data_dim: Optional[int] = None,
+        latent_dim: Optional[int] = None,
+        ebm_out_dim: Optional[int] = None,
     ):
         super().__init__()
 
@@ -56,7 +57,7 @@ class SVEBM(L.LightningModule):
         data_dim: int,
         latent_dim: int,
         ebm_out_dim: int,
-    ):
+    ) -> None:
         if hasattr(self.enc, "input_dim") and self.enc.input_dim != data_dim:
             raise ValueError(
                 f"Encoder input_dim ({self.enc.input_dim}) != " f"data_dim ({data_dim})"

@@ -1,7 +1,8 @@
 import torch.nn as nn
+from typing import Union
 
 
-def get_activation(name: str):
+def get_activation(name: str) -> Union[nn.ReLU, nn.GELU, nn.Tanh, nn.Sigmoid, nn.Softplus, nn.Softsign, nn.SELU, nn.CELU]:
     activations = {
         "relu": nn.ReLU,
         "gelu": nn.GELU,
