@@ -14,11 +14,14 @@ jobs:
     
     strategy:
       matrix:
-        python-version: [3.10, 3.11]
+        python-version: ["3.10.12", "3.11.9"]
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
+    - name: Debug Python version
+      run: echo "Setting up Python ${{ matrix.python-version }}"
       
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -69,7 +72,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: "3.11.9"
         
     - name: Install quality tools
       run: |
