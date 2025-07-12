@@ -7,7 +7,7 @@ import torch.nn as nn
 from src.utils import get_activation
 
 
-class EBMModel(L.LightningModule):
+class EBM_fcn(L.LightningModule):
     def __init__(
         self,
         input_dim: int,

@@ -7,7 +7,7 @@ model:
     ebm_out_dim: 128
     
     ebm_model:
-      class_path: src.prior.ebm_model.EBMModel
+      class_path: src.prior.ebm_model.EBM_fcn
       init_args:
         input_dim: ${model.init_args.latent_dim}
         output_dim: ${model.init_args.ebm_out_dim}

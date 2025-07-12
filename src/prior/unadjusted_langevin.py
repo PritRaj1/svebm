@@ -1,14 +1,14 @@
 import torch
 
-from src.prior.ebm_model import EBMModel
+from src.prior.ebm_model import EBM_fcn
 
 
-def ula(ebm: EBMModel, z: torch.Tensor) -> torch.Tensor:
+def ula_prior(ebm: EBM_fcn, z: torch.Tensor) -> torch.Tensor:
     """
     Unadjusted Langevin Algorithm (ULA) to evolve init z.
 
     Args:
-        ebm (EBMModel): The energy-based model.
+        ebm (EBM_fcn): The energy-based model.
         z (torch.Tensor): Init sample (batch, latent_dim).
 
     Returns:
