@@ -11,7 +11,7 @@ class PermuteLayer(nn.Module):
     def __init__(self, dims):
         super().__init__()
         self.dims = dims
-    
+
     def forward(self, x):
         return x.permute(*self.dims)
 
@@ -72,10 +72,10 @@ class DecoderModel(L.LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Decode latent representations back to data space.
-        
+
         Args:
             x: Latent representations (batch, seq_len, input_dim)
-            
+
         Returns:
             Reconstructed data (batch, seq_len, output_dim)
         """

@@ -11,7 +11,7 @@ class PermuteLayer(nn.Module):
     def __init__(self, dims):
         super().__init__()
         self.dims = dims
-    
+
     def forward(self, x):
         return x.permute(*self.dims)
 
@@ -51,7 +51,7 @@ class EncoderModel(L.LightningModule):
             else:
                 layers.append(
                     nn.Sequential(
-                        PermuteLayer((1, 0, 2)),  
+                        PermuteLayer((1, 0, 2)),
                         nn.TransformerEncoderLayer(
                             d_model=prev_dim,
                             nhead=self.nhead,
