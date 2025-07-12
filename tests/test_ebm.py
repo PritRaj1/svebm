@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from src.prior.ebm_model import EBM_fcn
-from src.prior.unadjusted_langevin import ula_prior
+from src.ebm.ebm_model import EBM_fcn
+from src.ebm.unadjusted_langevin import ula_prior
 
 
 class GaussianEBM(EBM_fcn):

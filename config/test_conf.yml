@@ -7,7 +7,7 @@ model:
     ebm_out_dim: 128
     
     ebm_model:
-      class_path: src.prior.ebm_model.EBM_fcn
+      class_path: src.ebm.ebm_model.EBM_fcn
       init_args:
         input_dim: ${model.init_args.latent_dim}
         output_dim: ${model.init_args.ebm_out_dim}
@@ -15,7 +15,7 @@ model:
         activation: relu
 
     encoder_model:
-      class_path: src.posterior.encoder_model.EncoderModel
+      class_path: src.variational.encoder_model.EncoderModel
       init_args:
         input_dim: ${model.init_args.data_dim}
         latent_dim: ${model.init_args.latent_dim}
@@ -25,7 +25,7 @@ model:
         activation: relu
 
     decoder_model:
-      class_path: src.posterior.decoder_model.DecoderModel
+      class_path: src.variational.decoder_model.DecoderModel
       init_args:
         input_dim: ${model.init_args.ebm_out_dim}
         output_dim: ${model.init_args.data_dim}

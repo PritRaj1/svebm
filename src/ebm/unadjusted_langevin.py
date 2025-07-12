@@ -1,6 +1,6 @@
 import torch
 
-from src.prior.ebm_model import EBM_fcn
+from src.ebm.ebm_model import EBM_fcn
 
 
 def ula_prior(ebm: EBM_fcn, z: torch.Tensor) -> torch.Tensor:
