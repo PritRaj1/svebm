@@ -3,7 +3,7 @@ import torch
 
 from src.ebm.ebm_model import EBM_fcn
 from src.variational.encoder_model import EncoderModel
-from src.variational.information_bottleneck import mutual_information
+from src.variational.criterions import mutual_information
 
 
 class TestVariationalComponents:
