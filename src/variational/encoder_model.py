@@ -20,7 +20,7 @@ class EncoderModel(L.LightningModule):
     def __init__(
         self,
         input_dim: int,
-        latent_dim: int,
+        output_dim: int,
         hidden_layers: list = [128, 128],
         nhead: int = 4,
         dropout: float = 0.1,
@@ -29,7 +29,7 @@ class EncoderModel(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.input_dim = input_dim
-        self.latent_dim = latent_dim
+        self.output_dim = output_dim
         self.nhead = nhead
         self.dropout = dropout
         self.activation = activation
@@ -67,7 +67,7 @@ class EncoderModel(L.LightningModule):
                 prev_dim = hidden_dim
 
         # Output projection
-        layers.append(nn.Linear(prev_dim, latent_dim))
+        layers.append(nn.Linear(prev_dim, output_dim))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
