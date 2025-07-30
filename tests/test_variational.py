@@ -12,7 +12,7 @@ class TestVariationalComponents:
     def test_encoder(self):
         return EncoderModel(
             input_dim=768,
-            latent_dim=128,
+            output_dim=128,
             hidden_layers=[256, 128],
             nhead=8,
             dropout=0.1,
@@ -27,7 +27,7 @@ class TestVariationalComponents:
 
     def test_encoder_instantiation(self, test_encoder):
         assert test_encoder.input_dim == 768
-        assert test_encoder.latent_dim == 128
+        assert test_encoder.output_dim == 128
         assert test_encoder.nhead == 8
         assert test_encoder.dropout == 0.1
         assert test_encoder.activation == "relu"
