@@ -78,12 +78,6 @@ class EncoderModel(L.LightningModule):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         hidden_st = cast(torch.Tensor, self.model(x))
-        z_mu = self.mu(hidden_st)
-        z_logvar = self.logvar(hidden_st)
+        z_mu = cast(torch.Tensor, self.mu(hidden_st))
+        z_logvar = cast(torch.Tensor, self.logvar(hidden_st))
         return z_mu, z_logvar, hidden_st
-
-
-
-
-
-

@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 from src.ebm.ebm_model import EBM_fcn
 
+
 # Optional criterion for information bottleneck
 def mutual_information(ebm: EBM_fcn, z: torch.Tensor, cls: bool = True) -> torch.Tensor:
     """Mutual information between z and class labels."""
@@ -11,8 +12,8 @@ def mutual_information(ebm: EBM_fcn, z: torch.Tensor, cls: bool = True) -> torch
     if cls:
         z = z[:, 0, :]  # CLS token
     else:
-        z = z.sum(dim=1) # Sum pooled (placeholder for learned pooling)
-    
+        z = z.sum(dim=1)  # Sum pooled (placeholder for learned pooling)
+
     # P(y|z)
     log_conditional = F.log_softmax(ebm(z), dim=-1)
     conditional = torch.exp(log_conditional)
@@ -26,7 +27,10 @@ def mutual_information(ebm: EBM_fcn, z: torch.Tensor, cls: bool = True) -> torch
 
     return H_y - H_z
 
-def reparameterize(mu: torch.Tensor, logvar: torch.Tensor, sample: bool = True) -> torch.Tensor:
+
+def reparameterize(
+    mu: torch.Tensor, logvar: torch.Tensor, sample: bool = True
+) -> torch.Tensor:
     """Reparameterize a Gaussian distribution."""
 
     if sample:
@@ -36,7 +40,7 @@ def reparameterize(mu: torch.Tensor, logvar: torch.Tensor, sample: bool = True) 
     else:
         return mu
 
-# KL(q∥p) = 1/2 [ Tr(Σ_q^{-1} Σ_p) + (μ_q − μ_p)^T Σ_q^{-1} (μ_q − μ_p) − k + log(det Σ_q / det Σ_p) ]
+
 def kl_div(
     ebm: EBM_fcn,
     tgt_probs: torch.Tensor,

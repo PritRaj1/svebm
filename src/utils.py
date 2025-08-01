@@ -30,7 +30,9 @@ def get_activation(name: str) -> ActivationType:
     return cast(ActivationType, activations[name]())
 
 
-def log_gaussian(z: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+def log_gaussian(
+    z: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor
+) -> torch.Tensor:
     log_p = (
         -0.5 * torch.log(2 * math.pi) - logvar / 2 - (z - mu) ** 2 / (2 * logvar.exp())
     )
