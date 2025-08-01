@@ -10,8 +10,8 @@ from src.utils import get_activation
 class EBM_fcn(L.LightningModule):
     def __init__(
         self,
-        input_dim: int,
-        output_dim: int,
+        latent_dim: int,
+        num_classes: int,
         hidden_layers: list = [128, 128],
         activation: str = "relu",
         eta: float = 1.0,
@@ -19,20 +19,20 @@ class EBM_fcn(L.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.latent_dim = latent_dim
+        self.num_classes = num_classes
         self.eta = eta  # ULA step size
         self.N = N  # Number of ULA steps
 
         layers: list[Any] = []
-        prev_dim = input_dim
+        prev_dim = latent_dim
 
         for h in hidden_layers:
             layers.append(nn.Linear(prev_dim, h))
             layers.append(get_activation(activation))
             prev_dim = h
 
-        layers.append(nn.Linear(prev_dim, output_dim))
+        layers.append(nn.Linear(prev_dim, num_classes))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

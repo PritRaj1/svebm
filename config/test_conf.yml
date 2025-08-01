@@ -4,13 +4,13 @@ model:
   init_args:
     data_dim: null
     latent_dim: 128
-    ebm_out_dim: 128
+    num_classes: 10
     
     ebm_model:
       class_path: src.ebm.ebm_model.EBM_fcn
       init_args:
-        input_dim: ${model.init_args.latent_dim}
-        output_dim: ${model.init_args.ebm_out_dim}
+        latent_dim: ${model.init_args.latent_dim}
+        num_classes: ${model.init_args.num_classes}
         hidden_layers: [256, 128]
         activation: relu
 
@@ -19,21 +19,16 @@ model:
       init_args:
         input_dim: ${model.init_args.data_dim}
         output_dim: 128
+        latent_dim: ${model.init_args.latent_dim}
         hidden_layers: [256, 128]
         nhead: 8
         dropout: 0.1
         activation: relu
 
-    latent_distribution:
-      class_path: src.variational.latent_dist.LatentDistribution
-      init_args:
-        input_dim: ${model.init_args.encoder_model.init_args.output_dim}
-        latent_dim: ${model.init_args.latent_dim}
-
     decoder_model:
       class_path: src.variational.decoder_model.DecoderModel
       init_args:
-        input_dim: ${model.init_args.ebm_out_dim}
+        latent_dim: ${model.init_args.latent_dim}
         output_dim: ${model.init_args.data_dim}
         hidden_layers: [128, 256]
         nhead: 8

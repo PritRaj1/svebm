@@ -8,7 +8,7 @@ from src.ebm.unadjusted_langevin import ula_prior
 
 class GaussianEBM(EBM_fcn):
     def __init__(self, mean=2.0, std=1.0):
-        super().__init__(input_dim=1, output_dim=1, hidden_layers=[64, 32])
+        super().__init__(latent_dim=1, num_classes=1, hidden_layers=[64, 32])
         self.mean = mean
         self.std = std
 
@@ -27,7 +27,7 @@ class TestULAConvergence:
 
     @pytest.fixture
     def test_ebm(self):
-        return EBM_fcn(input_dim=50, output_dim=1, hidden_layers=[64, 32])
+        return EBM_fcn(latent_dim=50, num_classes=1, hidden_layers=[64, 32])
 
     def test_ula_basics(self, test_ebm):
         batch_size = 32

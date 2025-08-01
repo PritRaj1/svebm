@@ -19,7 +19,7 @@ class PermuteLayer(nn.Module):
 class DecoderModel(L.LightningModule):
     def __init__(
         self,
-        input_dim: int,
+        latent_dim: int,
         output_dim: int,
         hidden_layers: list = [128, 128],
         nhead: int = 4,
@@ -28,7 +28,7 @@ class DecoderModel(L.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.input_dim = input_dim
+        self.latent_dim = latent_dim
         self.output_dim = output_dim
         self.nhead = nhead
         self.dropout = dropout
@@ -37,7 +37,7 @@ class DecoderModel(L.LightningModule):
 
         # Build decoder layers (reverse of encoder)
         layers: list[Any] = []
-        prev_dim = input_dim
+        prev_dim = latent_dim
 
         for i, hidden_dim in enumerate(hidden_layers):
             if i == 0:

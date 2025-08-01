@@ -13,6 +13,7 @@ class TestVariationalComponents:
         return EncoderModel(
             input_dim=768,
             output_dim=128,
+            latent_dim=128,
             hidden_layers=[256, 128],
             nhead=8,
             dropout=0.1,
@@ -22,12 +23,16 @@ class TestVariationalComponents:
     @pytest.fixture
     def test_ebm(self):
         return EBM_fcn(
-            input_dim=128, output_dim=10, hidden_layers=[64, 32], activation="relu"
+            latent_dim=128,
+            num_classes=10,
+            hidden_layers=[64, 32],
+            activation="relu",
         )
 
     def test_encoder_instantiation(self, test_encoder):
         assert test_encoder.input_dim == 768
         assert test_encoder.output_dim == 128
+        assert test_encoder.latent_dim == 128
         assert test_encoder.nhead == 8
         assert test_encoder.dropout == 0.1
         assert test_encoder.activation == "relu"
@@ -40,11 +45,17 @@ class TestVariationalComponents:
         input_dim = 768
 
         x = torch.randn(batch_size, seq_len, input_dim)
-        z = test_encoder(x)
+        z_mu, z_logvar, hidden_st = test_encoder(x)
 
-        assert z.shape == (batch_size, seq_len, 128)
-        assert not torch.isnan(z).any()
-        assert not torch.isinf(z).any()
+        assert z_mu.shape == (batch_size, seq_len, 128)
+        assert z_logvar.shape == (batch_size, seq_len, 128)
+        assert hidden_st.shape == (batch_size, seq_len, 128)
+        assert not torch.isnan(z_mu).any()
+        assert not torch.isinf(z_mu).any()
+        assert not torch.isnan(z_logvar).any()
+        assert not torch.isinf(z_logvar).any()
+        assert not torch.isnan(hidden_st).any()
+        assert not torch.isinf(hidden_st).any()
 
     def test_mi_shapes(self, test_ebm):
         batch_size = 32
