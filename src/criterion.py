@@ -6,9 +6,17 @@ from src.ebm.ebm_model import EBM_fcn
 
 
 class LogProb:
-    def __init__(self, ignore_index, config):
+    def __init__(
+        self,
+        ignore_index: int,
+        cls_id: int,
+        kl_weight: float = 1.0,
+        nll_weight: float = 1.0,
+    ):
         self.ignore_index = ignore_index  # PAD token index
-        self.config = config
+        self.cls_id = cls_id
+        self.kl_weight = kl_weight
+        self.nll_weight = nll_weight
         self.nll_criterion = nn.CrossEntropyLoss(
             ignore_index=ignore_index, reduction="mean"
         )
@@ -27,7 +35,7 @@ class LogProb:
         batch_size = z.shape[0]
 
         if z.dim() == 3:
-            if cls and self.config.cls_id is not None:
+            if cls and self.cls_id is not None:
                 z = z[:, 0, :]
             else:
                 # Mean pooling with padding mask, (placeholder for learned pooling)

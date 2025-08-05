@@ -34,6 +34,15 @@ model:
         nhead: 8
         dropout: 0.1
         activation: relu
+
+    logprob:
+      class_path: src.criterion.LogProb
+      init_args:
+        ignore_index: 0
+        cls_id: 0
+        kl_weight: 1.0
+        nll_weight: 1.0
+
     learning_rate: 0.001
 
 data:
