@@ -213,10 +213,15 @@ class TestVariationalComponents:
         x = torch.randn(batch_size, seq_len, input_dim)
         z_mu, z_logvar, hidden_st = test_encoder(x)
         
+        # Project encoder output to decoder's expected embed_size (placeholder for ebm flow)
+        projection = torch.nn.Linear(128, 768)
+        memory = projection(hidden_st)
+        
         inputs = torch.randint(0, 1000, (batch_size, seq_len))
-        logits = test_decoder(inputs, hidden_st, mode="TEACH_FORCE")
+        logits = test_decoder(inputs, memory, mode="TEACH_FORCE")
         
         assert z_mu.shape == (batch_size, 128)  # Global latent
         assert z_logvar.shape == (batch_size, 128)  # Global latent
         assert hidden_st.shape == (batch_size, seq_len, 128)  # Hidden states
+        assert memory.shape == (batch_size, seq_len, 768)  # Projected memory
         assert logits.shape == (batch_size, seq_len, 30522)  # Decoder output
