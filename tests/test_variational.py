@@ -5,7 +5,7 @@ from src.ebm.ebm_model import EBM_fcn
 from src.variational.encoder_model import EncoderModel
 from src.variational.decoder_model import DecoderModel
 from src.criterion import LogProb
-
+from src.ebm.unadjusted_langevin import ula_prior
 
 class TestVariationalComponents:
 
@@ -132,11 +132,8 @@ class TestVariationalComponents:
         seq_len = 16
         embed_size = 768
 
-        # Input tokens
         inputs = torch.randint(0, 1000, (batch_size, seq_len))
-        # Encoder memory (hidden states)
         memory = torch.randn(batch_size, seq_len, embed_size)
-        
         logits = test_decoder(inputs, memory, mode="TEACH_FORCE")
         
         assert logits.shape == (batch_size, seq_len, 30522)
@@ -144,31 +141,24 @@ class TestVariationalComponents:
         assert not torch.isinf(logits).any()
 
     def test_decoder_greedy_generation(self, test_decoder):
-        batch_size = 8  # Smaller batch for generation
+        batch_size = 8
         seq_len = 16
         embed_size = 768
 
-        # Encoder memory (hidden states)
         memory = torch.randn(batch_size, seq_len, embed_size)
-        
         generated = test_decoder(None, memory, mode="GENERATE", gen_type="greedy")
-        
-        # Should return generated sequences
         assert generated.shape[0] == batch_size
         assert generated.dtype == torch.long
         assert not torch.isnan(generated).any()
 
     def test_decoder_beam_search(self, test_decoder):
-        batch_size = 4  # Smaller batch for beam search
+        batch_size = 4
         seq_len = 16
         embed_size = 768
 
-        # Encoder memory (hidden states)
         memory = torch.randn(batch_size, seq_len, embed_size)
-        
         generated = test_decoder(None, memory, mode="GENERATE", gen_type="beam")
         
-        # Should return generated sequences
         assert generated.shape[0] == batch_size
         assert generated.dtype == torch.long
         assert not torch.isnan(generated).any()
@@ -177,12 +167,11 @@ class TestVariationalComponents:
         batch_size = 32
         latent_dim = 128
 
-        # Global latent variables (one per sequence)
         z = torch.randn(batch_size, latent_dim)
         mi = test_logprob.mutual_information(test_ebm, z)
 
         assert isinstance(mi, torch.Tensor)
-        assert mi.shape == ()  # Scalar
+        assert mi.shape == ()
         assert not torch.isnan(mi)
         assert not torch.isinf(mi)
         assert mi >= 0
@@ -191,7 +180,6 @@ class TestVariationalComponents:
         batch_size = 64
         latent_dim = 128
 
-        # Global latent variables (one per sequence)
         z1 = torch.randn(batch_size, latent_dim)
         z2 = torch.randn(batch_size, latent_dim)
 
@@ -205,23 +193,68 @@ class TestVariationalComponents:
         assert mi1 >= 0
         assert mi2 >= 0
 
-    def test_encoder_decoder_integration(self, test_encoder, test_decoder):
+    def test_encoder_decoder_integration(self, test_encoder, test_decoder, test_ebm, test_logprob):
         batch_size = 16
         seq_len = 12
         input_dim = 768
+        latent_dim = 128
+        vocab_size = 30522
 
-        x = torch.randn(batch_size, seq_len, input_dim)
-        z_mu, z_logvar, hidden_st = test_encoder(x)
+        x = torch.randint(4, 1000, (batch_size, seq_len))  # Avoid special tokens (0, 1, 2, 3)
+        mask = torch.zeros(batch_size, seq_len, dtype=torch.bool)
+        mask[:, -2:] = True  # Last two tokens are padding
+
+        embedding = torch.nn.Embedding(vocab_size, input_dim, padding_idx=0)
+        embedded = embedding(x)
+
+        z_mu, z_logvar, hidden_st = test_encoder(embedded, mask=mask)
+        sample_z = test_logprob.reparameterize(z_mu, z_logvar, sample=True)
+
+        # Project hidden states to embed_size
+        memory_projection = torch.nn.Linear(test_encoder.output_dim, test_decoder.embed_size)
+        memory = memory_projection(hidden_st)
         
-        # Project encoder output to decoder's expected embed_size (placeholder for ebm flow)
-        projection = torch.nn.Linear(128, 768)
-        memory = projection(hidden_st)
-        
-        inputs = torch.randint(0, 1000, (batch_size, seq_len))
+        # Decoder in TEACH_FORCE mode
+        inputs = x[:, :-1]  # Ground-truth input tokens (shifted)
         logits = test_decoder(inputs, memory, mode="TEACH_FORCE")
+
+        labels = x[:, 1:].contiguous()  # Target tokens (shifted)
+        nll = test_logprob.nll_entropy(logits, labels)
+        mi = test_logprob.mutual_information(test_ebm, sample_z, cls=False)
         
-        assert z_mu.shape == (batch_size, 128)  # Global latent
-        assert z_logvar.shape == (batch_size, 128)  # Global latent
-        assert hidden_st.shape == (batch_size, seq_len, 128)  # Hidden states
-        assert memory.shape == (batch_size, seq_len, 768)  # Projected memory
-        assert logits.shape == (batch_size, seq_len, 30522)  # Decoder output
+        # Dummy probs
+        tgt_probs = torch.softmax(torch.randn(batch_size, seq_len, test_ebm.num_classes), dim=-1)
+        zkl = test_logprob.kl_div(test_ebm, tgt_probs=tgt_probs, mean=z_mu.unsqueeze(1), logvar=z_logvar.unsqueeze(1))
+        prob_pos = test_ebm.ebm_prior(sample_z).mean()
+        
+        z_e_0 = torch.randn(batch_size, latent_dim, device=sample_z.device)
+        prior_z = ula_prior(test_ebm, z_e_0)
+        prob_neg = test_ebm.ebm_prior(prior_z.detach()).mean()
+
+        assert z_mu.shape == (batch_size, latent_dim)
+        assert z_logvar.shape == (batch_size, latent_dim)
+        assert hidden_st.shape == (batch_size, seq_len, test_encoder.output_dim)
+        assert logits.shape == (batch_size, seq_len-1, vocab_size)
+        assert nll.shape == ()
+        assert mi.shape == ()
+        assert zkl.shape == (batch_size, seq_len)
+        assert prob_pos.shape == ()
+        assert prob_neg.shape == ()
+        assert not torch.isnan(z_mu).any()
+        assert not torch.isinf(z_mu).any()
+        assert not torch.isnan(z_logvar).any()
+        assert not torch.isinf(z_logvar).any()
+        assert not torch.isnan(hidden_st).any()
+        assert not torch.isinf(hidden_st).any()
+        assert not torch.isnan(logits).any()
+        assert not torch.isinf(logits).any()
+        assert not torch.isnan(nll)
+        assert not torch.isinf(nll)
+        assert not torch.isnan(mi)
+        assert not torch.isinf(mi)
+        assert not torch.isnan(zkl).any()
+        assert not torch.isinf(zkl).any()
+        assert not torch.isnan(prob_pos)
+        assert not torch.isinf(prob_pos)
+        assert not torch.isnan(prob_neg)
+        assert not torch.isinf(prob_neg)
