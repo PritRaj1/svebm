@@ -88,86 +88,128 @@ class DecoderModel(L.LightningModule):
             ).permute(1, 0, 2)
             return self.output_layer(dec_out)
 
-        else:  # GENERATE mode
-            outputs = []
-            current_input = torch.full((batch_size, 1), self.bos_id, device=device, dtype=torch.long)
-            memory = memory.permute(1, 0, 2)
+        else:
+            if gen_type == "greedy":
+                outputs = []
+                current_input = torch.full((batch_size, 1), self.bos_id, device=device, dtype=torch.long)
+                memory = memory.permute(1, 0, 2)
 
-            for _ in range(self.max_dec_len):
-                embedded = self.embedding(current_input)
-                
-                if self.concat_latent:
-                    latent = self.latent_connector(memory.mean(dim=0))
-                    embedded = embedded + latent.unsqueeze(1)
-                
-                causal_mask = nn.Transformer.generate_square_subsequent_mask(current_input.size(1)).to(device)
-                dec_out = self.transformer(
-                    tgt=embedded.permute(1, 0, 2),
-                    memory=memory,
-                    tgt_mask=causal_mask,
-                    tgt_is_causal=True
-                ).permute(1, 0, 2)
-                logits = self.output_layer(dec_out[:, -1, :])
+                for _ in range(self.max_dec_len):
+                    embedded = self.embedding(current_input)
+                    
+                    if self.concat_latent:
+                        latent = self.latent_connector(memory.mean(dim=0))
+                        embedded = embedded + latent.unsqueeze(1)
+                    
+                    causal_mask = nn.Transformer.generate_square_subsequent_mask(current_input.size(1)).to(device)
+                    dec_out = self.transformer(
+                        tgt=embedded.permute(1, 0, 2),
+                        memory=memory,
+                        tgt_mask=causal_mask,
+                        tgt_is_causal=True
+                    ).permute(1, 0, 2)
+                    logits = self.output_layer(dec_out[:, -1, :])
 
-                next_token = logits.argmax(dim=-1, keepdim=True)
+                    next_token = logits.argmax(dim=-1, keepdim=True)
 
-                outputs.append(next_token)
-                current_input = torch.cat([current_input, next_token], dim=1)
-                if (next_token == self.eos_id).all():
-                    break
+                    outputs.append(next_token)
+                    current_input = torch.cat([current_input, next_token], dim=1)
+                    if (next_token == self.eos_id).all():
+                        break
 
-            return torch.cat(outputs, dim=1)
+                return torch.cat(outputs, dim=1)
+            else:
+                memory = memory.permute(1, 0, 2)
+                return self.beam_search(batch_size, memory, beam_width)
 
     def beam_search(self, batch_size: int, memory: torch.Tensor, beam_width: int = 3) -> torch.Tensor:
         """
-        Greedy beam search.
-
+        Beam search to generate and select sequences.
+        
         Args:
-            batch_size (int): Batch size.
-            memory (torch.Tensor): Memory tensor (batch, seq_len, memory_dim).
-            beam_width (int): Beam width.
-
+            batch_size: Number of sequences to generate
+            memory: Encoder memory [batch_size, seq_len, embed_size]
+            beam_width: Number of beams to maintain
+            
         Returns:
-            torch.Tensor: Decoded sequences (batch, max_dec_len).
+            Generated sequences [batch_size, max_seq_len]
         """
         device = memory.device
         max_len = self.max_dec_len
-
+        
+        # Initialize beams for each batch item
+        beams = [[([self.bos_id], 0.0)] for _ in range(batch_size)]
+        finished_beams = [[] for _ in range(batch_size)]
+        
+        for step in range(max_len):
+            if all(len(beams[b]) == 0 for b in range(batch_size)):
+                break
+                
+            for batch_idx in range(batch_size):
+                if len(beams[batch_idx]) == 0:
+                    continue
+                    
+                candidates = []
+                
+                for seq, log_prob in beams[batch_idx]:
+                    seq_tensor = torch.tensor([seq], device=device, dtype=torch.long)
+                    memory_batch = memory[:, batch_idx:batch_idx+1]
+                    embedded = self.embedding(seq_tensor)
+                    
+                    if self.concat_latent:
+                        latent = self.latent_connector(memory_batch.mean(dim=1))  # [1, embed_size]
+                        embedded = embedded + latent.unsqueeze(1)
+                    
+                    causal_mask = nn.Transformer.generate_square_subsequent_mask(seq_tensor.size(1)).to(device)
+                    
+                    dec_out = self.transformer(
+                        tgt=embedded.permute(1, 0, 2),
+                        memory=memory_batch,
+                        tgt_mask=causal_mask,
+                        tgt_is_causal=True
+                    ).permute(1, 0, 2)
+                    
+                    logits = self.output_layer(dec_out[:, -1, :])
+                    log_probs = F.log_softmax(logits, dim=-1)
+                    
+                    top_log_probs, top_indices = log_probs[0].topk(beam_width)
+                    
+                    for i in range(beam_width):
+                        new_token = top_indices[i].item()
+                        new_log_prob = top_log_probs[i].item()
+                        
+                        new_seq = seq + [new_token]
+                        new_score = log_prob + new_log_prob
+                        
+                        candidates.append((new_seq, new_score))
+                
+                # Select top 'beam_width' candidates
+                candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_width]
+                
+                # Update beams
+                new_beams = []
+                for seq, log_prob in candidates:
+                    if seq[-1] == self.eos_id:
+                        finished_beams[batch_idx].append((seq, log_prob))
+                    else:
+                        new_beams.append((seq, log_prob)) # Continue sequence
+                
+                beams[batch_idx] = new_beams
+        
         outputs = []
-        for b in range(batch_size):
-            current_input = torch.full((1, 1), self.bos_id, device=device, dtype=torch.long)
-            memory_b = memory[:, b:b+1, :]
+        for batch_idx in range(batch_size):
+            all_beams = beams[batch_idx] + finished_beams[batch_idx]
             
-            seq = [self.bos_id]
-            for _ in range(max_len):
-                embedded = self.embedding(current_input)
-                if self.concat_latent:
-                    latent = self.latent_connector(memory_b.mean(dim=0))
-                    embedded = embedded + latent.unsqueeze(1)
+            if len(all_beams) == 0:
+                best_seq = [self.pad_id] * max_len # If no valid sequences, return padding
+            else:
+                best_seq, _ = max(all_beams, key=lambda x: x[1]) # Select with highest log probability
                 
-                causal_mask = nn.Transformer.generate_square_subsequent_mask(current_input.size(1)).to(device)
-                dec_out = self.transformer(
-                    tgt=embedded.permute(1, 0, 2),
-                    memory=memory_b,
-                    tgt_mask=causal_mask,
-                    tgt_is_causal=True
-                ).permute(1, 0, 2)
-                logits = self.output_layer(dec_out[:, -1, :])
-                
-                next_token = logits.argmax(dim=-1, keepdim=True)
-                seq.append(next_token.item())
-                current_input = torch.cat([current_input, next_token], dim=1)
-                
-                if next_token.item() == self.eos_id:
-                    break
+                if len(best_seq) < max_len:
+                    best_seq.extend([self.pad_id] * (max_len - len(best_seq)))
+                else:
+                    best_seq = best_seq[:max_len]
             
-            outputs.append(seq)
+            outputs.append(best_seq)
         
-        max_seq_len = max(len(seq) for seq in outputs)
-        padded_outputs = []
-        for seq in outputs:
-            if len(seq) < max_seq_len:
-                seq.extend([self.pad_id] * (max_seq_len - len(seq)))
-            padded_outputs.append(seq[:max_seq_len])
-        
-        return torch.tensor(padded_outputs, device=device, dtype=torch.long)
+        return torch.tensor(outputs, device=device, dtype=torch.long)
