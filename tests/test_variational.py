@@ -125,10 +125,10 @@ class TestVariationalComponents:
         assert test_decoder.dropout == 0.1
         assert test_decoder.activation == "relu"
         assert test_decoder.max_dec_len == 50
-        assert test_decoder.pad_id == 0
-        assert test_decoder.bos_id == 1
-        assert test_decoder.eos_id == 2
-        assert test_decoder.unk_id == 3
+        assert test_decoder.token_manager.pad_id == 0
+        assert test_decoder.token_manager.bos_id == 1
+        assert test_decoder.token_manager.eos_id == 2
+        assert test_decoder.token_manager.unk_id == 3
         assert not test_decoder.concat_latent
 
     def test_decoder_teacher_force(self, test_decoder):
