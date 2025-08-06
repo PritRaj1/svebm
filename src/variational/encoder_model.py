@@ -11,7 +11,7 @@ class EncoderModel(L.LightningModule):
     def __init__(
         self,
         input_dim: int,
-        output_dim: int,
+        memory_dim: int,
         latent_dim: int,
         hidden_layers: list = [128, 128],
         nhead: int = 4,
@@ -22,7 +22,7 @@ class EncoderModel(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.memory_dim = memory_dim
         self.latent_dim = latent_dim
         self.nhead = nhead
         self.dropout = dropout
@@ -58,11 +58,11 @@ class EncoderModel(L.LightningModule):
                 prev_dim = hidden_dim
 
         # Output projection
-        self.output_layer = nn.Linear(prev_dim, output_dim)
+        self.output_layer = nn.Linear(prev_dim, memory_dim)
 
         # Q(z | x) networks
-        self.mu = nn.Linear(output_dim, latent_dim)
-        self.logvar = nn.Linear(output_dim, latent_dim)
+        self.mu = nn.Linear(memory_dim, latent_dim)
+        self.logvar = nn.Linear(memory_dim, latent_dim)
 
     def forward(
         self, x: torch.Tensor, mask: torch.Tensor = None
@@ -77,7 +77,7 @@ class EncoderModel(L.LightningModule):
         Returns:
             z_mu: Mean of latent distribution (batch_size, latent_dim)
             z_logvar: Log variance of latent distribution (batch_size, latent_dim)
-            hidden_st: Hidden states (batch_size, seq_len, output_dim)
+            hidden_st: Hidden states (batch_size, seq_len, memory_dim)
         """
         hidden = x
 

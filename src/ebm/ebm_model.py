@@ -12,8 +12,10 @@ class EBM_fcn(L.LightningModule):
         self,
         latent_dim: int,
         num_classes: int,
-        hidden_layers: list = [128, 128],
+        hidden_layers: list = [64, 32],
         activation: str = "relu",
+        num_latent_samples: int = 20,
+        num_gmm_components: int = 5,
         eta: float = 1.0,
         N: int = 1,
     ):
@@ -21,19 +23,25 @@ class EBM_fcn(L.LightningModule):
         self.save_hyperparameters()
         self.latent_dim = latent_dim
         self.num_classes = num_classes
-        self.eta = eta  # ULA step size
-        self.N = N  # Number of ULA steps
-
-        layers: list[Any] = []
+        self.num_latent_samples = num_latent_samples
+        self.num_gmm_components = num_gmm_components
+        self.eta = eta
+        self.N = N
+        
+        layers = []
         prev_dim = latent_dim
-
-        for h in hidden_layers:
-            layers.append(nn.Linear(prev_dim, h))
-            layers.append(get_activation(activation))
-            prev_dim = h
-
+        for hidden_dim in hidden_layers:
+            layers.append(nn.Linear(prev_dim, hidden_dim))
+            layers.append(nn.GELU())
+            prev_dim = hidden_dim
         layers.append(nn.Linear(prev_dim, num_classes))
         self.model = nn.Sequential(*layers)
+        
+        # Gaussian mixture model
+        mus = torch.randn(num_latent_samples, num_gmm_components, latent_dim)
+        logvar = torch.randn(num_latent_samples, num_gmm_components, latent_dim)
+        self.register_parameter('mix_mus', nn.Parameter(mus, requires_grad=True))
+        self.register_parameter('mix_logvars', nn.Parameter(logvar, requires_grad=True))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return cast(torch.Tensor, self.model(x))

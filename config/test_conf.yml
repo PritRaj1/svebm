@@ -5,6 +5,7 @@ model:
     data_dim: null
     latent_dim: 128
     num_classes: 10
+    memory_dim: 128
     
     ebm_model:
       class_path: src.ebm.ebm_model.EBM_fcn
@@ -13,12 +14,16 @@ model:
         num_classes: ${model.init_args.num_classes}
         hidden_layers: [256, 128]
         activation: relu
+        num_latent_samples: 20
+        num_gmm_components: 5
+        eta: 1.0
+        N: 1
 
     encoder_model:
       class_path: src.variational.encoder_model.EncoderModel
       init_args:
         input_dim: ${model.init_args.data_dim}
-        output_dim: 128
+        memory_dim: ${model.init_args.memory_dim}
         latent_dim: ${model.init_args.latent_dim}
         hidden_layers: [256, 128]
         nhead: 8
@@ -32,6 +37,7 @@ model:
         vocab_size: 30522
         embed_size: 768
         latent_dim: ${model.init_args.latent_dim}
+        memory_dim: ${model.init_args.memory_dim}
         hidden_layers: [128, 256]
         nhead: 8
         dropout: 0.1
