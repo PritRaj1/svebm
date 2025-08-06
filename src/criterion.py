@@ -76,19 +76,19 @@ class LogProb:
         """KL divergence between Gaussian q(z|x) and GMM prior p(z|y)."""
         mean = mean.view(-1, ebm.num_latent_samples, ebm.latent_dim)
         logvar = logvar.view(-1, ebm.num_latent_samples, ebm.latent_dim)
-        
+
         # KL against mean prior
         if mean_prior:
             tgt_probs_ = tgt_probs.unsqueeze(-1).expand(-1, -1, -1, ebm.latent_dim)
             eta1 = ebm.mix_mus / torch.exp(ebm.mix_logvars)  # eta1 = \Sigma^-1 * mu
             eta2 = -0.5 * torch.pow(torch.exp(ebm.mix_logvars), -1)
-            
+
             Eeta1 = torch.sum(tgt_probs_ * eta1, dim=-2)
             Eeta2 = torch.sum(tgt_probs_ * eta2, dim=-2)
-            
+
             Emu = -0.5 * Eeta1 / Eeta2
             Evar = -0.5 / Eeta2
-            
+
             kl = 0.5 * (
                 torch.sum(torch.exp(logvar) / Evar, dim=-1)
                 + torch.sum((Emu - mean) ** 2 / Evar, dim=-1)
@@ -100,13 +100,17 @@ class LogProb:
         # Direct KL against each GMM component
         else:
             mu_repeat = mean.unsqueeze(-2).expand(-1, -1, ebm.num_gmm_components, -1)
-            logvar_repeat = logvar.unsqueeze(-2).expand(-1, -1, ebm.num_gmm_components, -1)
-            
+            logvar_repeat = logvar.unsqueeze(-2).expand(
+                -1, -1, ebm.num_gmm_components, -1
+            )
+
             kl = 0.5 * (
                 torch.sum(torch.exp(logvar_repeat) / torch.exp(ebm.mix_logvars), dim=-1)
-                + torch.sum((ebm.mix_mus - mu_repeat) ** 2 / torch.exp(ebm.mix_logvars), dim=-1)
+                + torch.sum(
+                    (ebm.mix_mus - mu_repeat) ** 2 / torch.exp(ebm.mix_logvars), dim=-1
+                )
                 - mean.size(-1)
                 + torch.sum(ebm.mix_logvars - logvar_repeat, dim=-1)
             )
-            
+
             return torch.sum(kl * tgt_probs, dim=-1)

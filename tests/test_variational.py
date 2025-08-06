@@ -7,6 +7,7 @@ from src.variational.decoder_model import DecoderModel
 from src.criterion import LogProb
 from src.ebm.unadjusted_langevin import ula_prior
 
+
 class TestVariationalComponents:
 
     @pytest.fixture
@@ -84,7 +85,7 @@ class TestVariationalComponents:
         assert z_mu.shape == (batch_size, test_encoder.latent_dim)
         assert z_logvar.shape == (batch_size, test_encoder.latent_dim)
         assert hidden_st.shape == (batch_size, seq_len, test_encoder.memory_dim)
-        
+
         assert not torch.isnan(z_mu).any()
         assert not torch.isinf(z_mu).any()
         assert not torch.isnan(z_logvar).any()
@@ -101,14 +102,14 @@ class TestVariationalComponents:
         # Create padding mask (last 4 tokens are padding)
         mask = torch.zeros(batch_size, seq_len, dtype=torch.bool)
         mask[:, -4:] = True  # Last 4 tokens are padding
-        
+
         z_mu, z_logvar, hidden_st = test_encoder(x, mask=mask)
 
         # Global latent variables (one per sequence)
         assert z_mu.shape == (batch_size, test_encoder.latent_dim)
         assert z_logvar.shape == (batch_size, test_encoder.latent_dim)
         assert hidden_st.shape == (batch_size, seq_len, test_encoder.memory_dim)
-        
+
         assert not torch.isnan(z_mu).any()
         assert not torch.isinf(z_mu).any()
         assert not torch.isnan(z_logvar).any()
@@ -128,7 +129,7 @@ class TestVariationalComponents:
         assert test_decoder.bos_id == 1
         assert test_decoder.eos_id == 2
         assert test_decoder.unk_id == 3
-        assert test_decoder.concat_latent == False
+        assert not test_decoder.concat_latent
 
     def test_decoder_teacher_force(self, test_decoder):
         batch_size = 32
@@ -138,7 +139,7 @@ class TestVariationalComponents:
         inputs = torch.randint(0, 1000, (batch_size, seq_len))
         memory = torch.randn(batch_size, seq_len, memory_dim)
         logits = test_decoder(inputs, memory, mode="TEACH_FORCE")
-        
+
         assert logits.shape == (batch_size, seq_len, test_decoder.vocab_size)
         assert not torch.isnan(logits).any()
         assert not torch.isinf(logits).any()
@@ -161,7 +162,7 @@ class TestVariationalComponents:
 
         memory = torch.randn(batch_size, seq_len, memory_dim)
         generated = test_decoder(None, memory, mode="GENERATE", gen_type="beam")
-        
+
         assert generated.shape[0] == batch_size
         assert generated.dtype == torch.long
         assert not torch.isnan(generated).any()
@@ -196,14 +197,18 @@ class TestVariationalComponents:
         assert mi1 >= 0
         assert mi2 >= 0
 
-    def test_encoder_decoder_integration(self, test_encoder, test_decoder, test_ebm, test_logprob):
+    def test_encoder_decoder_integration(
+        self, test_encoder, test_decoder, test_ebm, test_logprob
+    ):
         batch_size = 16
         seq_len = 12
         input_dim = 768
         latent_dim = 128
         vocab_size = 30522
 
-        x = torch.randint(4, 1000, (batch_size, seq_len))  # Avoid special tokens (0, 1, 2, 3)
+        x = torch.randint(
+            4, 1000, (batch_size, seq_len)
+        )  # Avoid special tokens (0, 1, 2, 3)
         mask = torch.zeros(batch_size, seq_len, dtype=torch.bool)
         mask[:, -2:] = True  # Last two tokens are padding
 
@@ -212,21 +217,30 @@ class TestVariationalComponents:
 
         z_mu, z_logvar, hidden_st = test_encoder(embedded, mask=mask)
         sample_z = test_logprob.reparameterize(z_mu, z_logvar, sample=True)
-        
+
         inputs = x[:, :-1]  # Ground-truth input tokens (shifted)
         logits = test_decoder(inputs, hidden_st, mode="TEACH_FORCE")
 
         labels = x[:, 1:].contiguous()  # Target tokens (shifted)
         nll = test_logprob.nll_entropy(logits, labels)
         mi = test_logprob.mutual_information(test_ebm, sample_z, cls=False)
-        
+
         # Dummy probs (matches GMM structure)
-        tgt_probs = torch.softmax(torch.randn(batch_size, test_ebm.num_latent_samples, test_ebm.num_gmm_components), dim=-1)
+        tgt_probs = torch.softmax(
+            torch.randn(
+                batch_size, test_ebm.num_latent_samples, test_ebm.num_gmm_components
+            ),
+            dim=-1,
+        )
         z_mu_mult_k = z_mu.unsqueeze(1).expand(-1, test_ebm.num_latent_samples, -1)
-        z_logvar_mult_k = z_logvar.unsqueeze(1).expand(-1, test_ebm.num_latent_samples, -1)
-        zkl = test_logprob.kl_div(test_ebm, tgt_probs=tgt_probs, mean=z_mu_mult_k, logvar=z_logvar_mult_k)
+        z_logvar_mult_k = z_logvar.unsqueeze(1).expand(
+            -1, test_ebm.num_latent_samples, -1
+        )
+        zkl = test_logprob.kl_div(
+            test_ebm, tgt_probs=tgt_probs, mean=z_mu_mult_k, logvar=z_logvar_mult_k
+        )
         prob_pos = test_ebm.ebm_prior(sample_z).mean()
-        
+
         z_e_0 = torch.randn(batch_size, latent_dim, device=sample_z.device)
         prior_z = ula_prior(test_ebm, z_e_0)
         prob_neg = test_ebm.ebm_prior(prior_z.detach()).mean()
@@ -234,7 +248,7 @@ class TestVariationalComponents:
         assert z_mu.shape == (batch_size, latent_dim)
         assert z_logvar.shape == (batch_size, latent_dim)
         assert hidden_st.shape == (batch_size, seq_len, test_encoder.memory_dim)
-        assert logits.shape == (batch_size, seq_len-1, vocab_size)
+        assert logits.shape == (batch_size, seq_len - 1, vocab_size)
         assert nll.shape == ()
         assert mi.shape == ()
         assert zkl.shape == (batch_size, test_ebm.num_latent_samples)

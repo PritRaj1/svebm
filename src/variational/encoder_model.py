@@ -1,5 +1,3 @@
-from typing import Any, cast
-
 import lightning as L
 import torch
 import torch.nn as nn
