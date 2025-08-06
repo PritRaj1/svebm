@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from enum import Enum
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict
 from dataclasses import dataclass
 
 
@@ -15,21 +15,21 @@ class GenerationMode(Enum):
 
 class TokenManager:
     """Manages token operations."""
-    
+
     def __init__(self, pad_id: int, bos_id: int, eos_id: int, unk_id: int):
         self.pad_id = pad_id
         self.bos_id = bos_id
         self.eos_id = eos_id
         self.unk_id = unk_id
-    
+
     def create_bos_tensor(self, batch_size: int, device: torch.device) -> torch.Tensor:
         """Create a tensor of BOS tokens."""
         return torch.full((batch_size, 1), self.bos_id, device=device, dtype=torch.long)
-    
+
     def is_eos(self, tokens: torch.Tensor) -> torch.Tensor:
         """Check if tokens are EOS tokens."""
         return tokens == self.eos_id
-    
+
     def pad_sequence(self, sequence: List[int], max_len: int) -> List[int]:
         """Pad a sequence to max_len."""
         if len(sequence) < max_len:
@@ -40,16 +40,17 @@ class TokenManager:
 @dataclass
 class BeamState:
     """Single beam."""
+
     sequence: List[int]
     log_prob: float
     finished: bool = False
-    
-    def add_token(self, token: int, log_prob: float) -> 'BeamState':
+
+    def add_token(self, token: int, log_prob: float) -> "BeamState":
         """Add a token to this beam."""
         return BeamState(
             sequence=self.sequence + [token],
             log_prob=self.log_prob + log_prob,
-            finished=token == 2  # EOS token
+            finished=token == 2,  # EOS token
         )
 
 
@@ -73,7 +74,7 @@ class DecoderModel(L.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        
+
         self.vocab_size = vocab_size
         self.embed_size = embed_size
         self.latent_dim = latent_dim
@@ -84,9 +85,9 @@ class DecoderModel(L.LightningModule):
         self.hidden_layers = hidden_layers
         self.max_dec_len = max_dec_len
         self.concat_latent = concat_latent
-        
+
         self.token_manager = TokenManager(pad_id, bos_id, eos_id, unk_id)
-        self._cached_masks: Dict[int, torch.Tensor] = {} # Cache for causal mask
+        self._cached_masks: Dict[int, torch.Tensor] = {}  # Cache for causal mask
 
         # Embedding and projection layers
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=pad_id)
@@ -129,11 +130,13 @@ class DecoderModel(L.LightningModule):
         else:
             return self.generate(memory, gen_type, beam_width)
 
-    def teacher_force_forward(self, inputs: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
+    def teacher_force_forward(
+        self, inputs: torch.Tensor, memory: torch.Tensor
+    ) -> torch.Tensor:
         """Teacher forcing training pass."""
         memory = self.memory_projection(memory)
         embedded = self._embed_and_condition(inputs, memory)
-        
+
         causal_mask = self._get_causal_mask(inputs.size(1), inputs.device)
         memory = memory.permute(1, 0, 2)
         dec_out = self._transformer_forward(embedded, memory, causal_mask)
@@ -141,14 +144,11 @@ class DecoderModel(L.LightningModule):
         return self.output_layer(dec_out)
 
     def generate(
-        self, 
-        memory: torch.Tensor, 
-        gen_type: str = "greedy", 
-        beam_width: int = 3
+        self, memory: torch.Tensor, gen_type: str = "greedy", beam_width: int = 3
     ) -> torch.Tensor:
         """Route to chosen gen mode."""
         memory = self.memory_projection(memory)
-        
+
         if gen_type == GenerationMode.GREEDY.value:
             return self.greedy_decode(memory)
         elif gen_type == GenerationMode.BEAM.value:
@@ -160,31 +160,33 @@ class DecoderModel(L.LightningModule):
         """Greedy decoding with early stopping for inference."""
         batch_size = memory.size(0)
         device = memory.device
-        
+
         # Initialize with BOS tokens in place of inputs
         current_input = self.token_manager.create_bos_tensor(batch_size, device)
         memory = memory.permute(1, 0, 2)
-        
+
         outputs = []
         active_mask = torch.ones(batch_size, dtype=torch.bool, device=device)
-        
+
         for step in range(self.max_dec_len):
             if not active_mask.any():
                 break
-                
+
             embedded = self._embed_and_condition(current_input, memory, active_mask)
             causal_mask = self._get_causal_mask(current_input.size(1), device)
-            dec_out = self._transformer_forward(embedded, memory, causal_mask, active_mask)
-            
+            dec_out = self._transformer_forward(
+                embedded, memory, causal_mask, active_mask
+            )
+
             logits = self.output_layer(dec_out[:, -1, :])
             next_token = logits.argmax(dim=-1, keepdim=True)
-            
+
             outputs.append(next_token)
             current_input = torch.cat([current_input, next_token], dim=1)
-            
+
             eos_mask = self.token_manager.is_eos(next_token.squeeze(-1))
             active_mask = active_mask & ~eos_mask
-        
+
         return torch.cat(outputs, dim=1)
 
     def beam_decode(self, memory: torch.Tensor, beam_width: int = 3) -> torch.Tensor:
@@ -192,143 +194,153 @@ class DecoderModel(L.LightningModule):
         batch_size = memory.size(0)
         device = memory.device
         memory = memory.permute(1, 0, 2)
-        
+
         beams = self._initialize_beams(batch_size, beam_width)
         finished_beams = [[] for _ in range(batch_size)]
-        
+
         for step in range(self.max_dec_len):
             if all(len(beams[b]) == 0 for b in range(batch_size)):
                 break
-                
+
             beams, finished_beams = self._expand_beams_parallel(
                 beams, finished_beams, memory, beam_width, device
             )
-        
+
         return self._select_best_sequences(beams, finished_beams, batch_size, device)
 
-    def _initialize_beams(self, batch_size: int, beam_width: int) -> List[List[BeamState]]:
+    def _initialize_beams(
+        self, batch_size: int, beam_width: int
+    ) -> List[List[BeamState]]:
         """Initialize beams for each item in batch."""
-        return [[BeamState(sequence=[self.token_manager.bos_id], log_prob=0.0)] 
-                for _ in range(batch_size)]
+        return [
+            [BeamState(sequence=[self.token_manager.bos_id], log_prob=0.0)]
+            for _ in range(batch_size)
+        ]
 
     def _expand_beams_parallel(
-        self, 
-        beams: List[List[BeamState]], 
-        finished_beams: List[List[BeamState]], 
-        memory: torch.Tensor, 
-        beam_width: int, 
-        device: torch.device
+        self,
+        beams: List[List[BeamState]],
+        finished_beams: List[List[BeamState]],
+        memory: torch.Tensor,
+        beam_width: int,
+        device: torch.device,
     ) -> Tuple[List[List[BeamState]], List[List[BeamState]]]:
         """Expand all beams in parallel."""
         for batch_idx in range(len(beams)):
             if len(beams[batch_idx]) == 0:
                 continue
-                
+
             candidates = []
-            
+
             for beam in beams[batch_idx]:
                 if beam.finished:
                     continue
-                    
-                seq_tensor = torch.tensor([beam.sequence], device=device, dtype=torch.long)
+
+                seq_tensor = torch.tensor(
+                    [beam.sequence], device=device, dtype=torch.long
+                )
                 memory_batch = memory[:, batch_idx:batch_idx + 1]
-                
+
                 embedded = self._embed_and_condition(seq_tensor, memory_batch)
                 causal_mask = self._get_causal_mask(seq_tensor.size(1), device)
                 dec_out = self._transformer_forward(embedded, memory_batch, causal_mask)
-                
+
                 logits = self.output_layer(dec_out[:, -1, :])
                 log_probs = F.log_softmax(logits, dim=-1)
-                
+
                 # Get top-k candidates
                 top_log_probs, top_indices = log_probs[0].topk(beam_width)
-                
+
                 for i in range(beam_width):
                     new_token = top_indices[i].item()
                     new_log_prob = top_log_probs[i].item()
                     new_beam = beam.add_token(new_token, new_log_prob)
                     candidates.append(new_beam)
-            
+
             # Select top 'beam_width' candidates
-            candidates = sorted(candidates, key=lambda x: x.log_prob, reverse=True)[:beam_width]
-            
+            candidates = sorted(candidates, key=lambda x: x.log_prob, reverse=True)[
+                :beam_width
+            ]
+
             new_beams = []
             for beam in candidates:
                 if beam.finished:
                     finished_beams[batch_idx].append(beam)
                 else:
                     new_beams.append(beam)
-            
+
             beams[batch_idx] = new_beams
-        
+
         return beams, finished_beams
 
     def _select_best_sequences(
-        self, 
-        beams: List[List[BeamState]], 
-        finished_beams: List[List[BeamState]], 
-        batch_size: int, 
-        device: torch.device
+        self,
+        beams: List[List[BeamState]],
+        finished_beams: List[List[BeamState]],
+        batch_size: int,
+        device: torch.device,
     ) -> torch.Tensor:
         """Select the best sequences from all beams."""
         outputs = []
-        
+
         for batch_idx in range(batch_size):
             all_beams = beams[batch_idx] + finished_beams[batch_idx]
-            
+
             # No valid sequences, return padding
             if len(all_beams) == 0:
                 best_seq = [self.token_manager.pad_id] * self.max_dec_len
-                
+
             # Select beam with highest log probability
             else:
-                
+
                 best_beam = max(all_beams, key=lambda x: x.log_prob)
-                best_seq = self.token_manager.pad_sequence(best_beam.sequence, self.max_dec_len)
-            
+                best_seq = self.token_manager.pad_sequence(
+                    best_beam.sequence, self.max_dec_len
+                )
+
             outputs.append(best_seq)
-        
+
         return torch.tensor(outputs, device=device, dtype=torch.long)
 
     def _embed_and_condition(
-        self, 
-        inputs: torch.Tensor, 
-        memory: torch.Tensor, 
-        active_mask: Optional[torch.Tensor] = None
+        self,
+        inputs: torch.Tensor,
+        memory: torch.Tensor,
+        active_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Embed inputs and condition with latent if enabled."""
         embedded = self.embedding(inputs)
-        
+
         if self.concat_latent:
             if memory.dim() == 3:
                 latent = self.latent_connector(memory.mean(dim=0))
             else:
                 latent = self.latent_connector(memory.mean(dim=1))
-            
+
             embedded = embedded + latent.unsqueeze(1)
-        
+
         return embedded
 
     def _transformer_forward(
-        self, 
-        embedded: torch.Tensor, 
-        memory: torch.Tensor, 
+        self,
+        embedded: torch.Tensor,
+        memory: torch.Tensor,
         causal_mask: torch.Tensor,
-        active_mask: Optional[torch.Tensor] = None
+        active_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Unified transformer forward pass."""
         # Only process active sequences and stop early where EOS is reached
         if active_mask is not None:
             embedded = embedded[active_mask]
             memory = memory[:, active_mask]
-        
+
         dec_out = self.transformer(
             tgt=embedded.permute(1, 0, 2),
             memory=memory,
             tgt_mask=causal_mask,
             tgt_is_causal=True,
         ).permute(1, 0, 2)
-        
+
         return dec_out
 
     def _get_causal_mask(self, seq_len: int, device: torch.device) -> torch.Tensor:
