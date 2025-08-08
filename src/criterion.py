@@ -12,14 +12,27 @@ class LogProb:
         cls_id: int,
         kl_weight: float = 1.0,
         nll_weight: float = 1.0,
+        mi_weight: float = 1.0,
     ):
         self.ignore_index = ignore_index  # PAD token index
         self.cls_id = cls_id
         self.kl_weight = kl_weight
         self.nll_weight = nll_weight
+        self.mi_weight = mi_weight
         self.nll_criterion = nn.CrossEntropyLoss(
             ignore_index=ignore_index, reduction="mean"
         )
+
+    def contrastive_loss(
+        self,
+        ebm: EBM_fcn,
+        z_prior: torch.Tensor,
+        z_posterior: torch.Tensor,
+    ) -> torch.Tensor:
+        """Contrastive loss between prior and posterior latent samples."""
+        energy_prior = ebm.ebm_prior(z_prior)
+        energy_posterior = ebm.ebm_prior(z_posterior)
+        return energy_posterior.mean() - energy_prior.mean()
 
     def nll_entropy(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Negative log-likelihood loss for sequence reconstruction."""
