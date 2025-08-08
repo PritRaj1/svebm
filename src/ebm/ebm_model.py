@@ -43,10 +43,10 @@ class EBM_fcn(L.LightningModule):
         return self.model(x)
 
     def ebm_prior(
-        self, x: torch.Tensor, cls_output: bool = False, temperature: float = 1.0
+        self, x: torch.Tensor, cls_output: bool = False, beta: float = 1.0
     ) -> torch.Tensor:
         assert len(x.size()) == 2, f"Expected 2D input, got shape {x.size()}"
         logits = self.forward(x)
         if cls_output:
             return logits
-        return temperature * (logits / temperature).logsumexp(dim=1)
+        return beta * (logits / beta).logsumexp(dim=1)
