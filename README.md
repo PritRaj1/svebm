@@ -1,5 +1,5 @@
 # svebm
-Unsupervised meta-learning model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), optimised with Ligtning and TorchInductor.
+Unsupervised meta-learning model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), with Lightning and Transformer layers.
 
 ## Setup
 

@@ -1,14 +1,14 @@
 import logging
 from typing import Any, Callable, Dict, Optional, Union
 
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
 
 logger = logging.getLogger(__name__)
 
 
-class TextDataModule(pl.LightningDataModule):
+class TextDataModule(L.LightningDataModule):
     def __init__(
         self,
         dataset_cls: Callable[..., Dataset],

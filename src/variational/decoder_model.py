@@ -328,19 +328,29 @@ class DecoderModel(L.LightningModule):
         causal_mask: torch.Tensor,
         active_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Unified transformer forward pass."""
-        # Only process active sequences and stop early where EOS is reached
-        if active_mask is not None:
-            embedded = embedded[active_mask]
-            memory = memory[:, active_mask]
+        """Only process active sequences and stop early where EOS is reached."""
+        if active_mask is not None and active_mask.any():
+            active_embedded = embedded[active_mask]
+            active_memory = memory[:, active_mask]
+            
+            active_dec_out = self.transformer(
+                tgt=active_embedded.permute(1, 0, 2),
+                memory=active_memory,
+                tgt_mask=causal_mask,
+                tgt_is_causal=True,
+            ).permute(1, 0, 2)
+            
+            dec_out = torch.zeros_like(embedded)
+            dec_out[active_mask] = active_dec_out
 
-        dec_out = self.transformer(
-            tgt=embedded.permute(1, 0, 2),
-            memory=memory,
-            tgt_mask=causal_mask,
-            tgt_is_causal=True,
-        ).permute(1, 0, 2)
-
+        else:
+            dec_out = self.transformer(
+                tgt=embedded.permute(1, 0, 2),
+                memory=memory,
+                tgt_mask=causal_mask,
+                tgt_is_causal=True,
+            ).permute(1, 0, 2)
+            
         return dec_out
 
     def _get_causal_mask(self, seq_len: int, device: torch.device) -> torch.Tensor:

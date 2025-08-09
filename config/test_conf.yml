@@ -2,16 +2,14 @@ model:
   class_path: src.model.SVEBM
 
   init_args:
-    data_dim: null
+    data_dim: 768
     latent_dim: 128
-    num_classes: 10
-    memory_dim: 128
     
     ebm_model:
       class_path: src.ebm.ebm_model.EBM_fcn
       init_args:
-        latent_dim: ${model.init_args.latent_dim}
-        num_classes: ${model.init_args.num_classes}
+        latent_dim: 128
+        num_classes: 10
         hidden_layers: [256, 128]
         activation: relu
         num_latent_samples: 20
@@ -22,9 +20,9 @@ model:
     encoder_model:
       class_path: src.variational.encoder_model.EncoderModel
       init_args:
-        input_dim: ${model.init_args.data_dim}
-        memory_dim: ${model.init_args.memory_dim}
-        latent_dim: ${model.init_args.latent_dim}
+        input_dim: 768
+        memory_dim: 128
+        latent_dim: 128
         hidden_layers: [256, 128]
         nhead: 8
         dropout: 0.1
@@ -36,8 +34,8 @@ model:
       init_args:
         vocab_size: 30522
         embed_size: 768
-        latent_dim: ${model.init_args.latent_dim}
-        memory_dim: ${model.init_args.memory_dim}
+        latent_dim: 128
+        memory_dim: 128
         hidden_layers: [128, 256]
         nhead: 8
         dropout: 0.1
@@ -49,7 +47,7 @@ model:
         unk_id: 3
         concat_latent: false
 
-    logprob:
+    loss_struct:
       class_path: src.criterion.LogProb
       init_args:
         ignore_index: 0
@@ -58,6 +56,16 @@ model:
         nll_weight: 1.0
 
     learning_rate: 0.001
+    ebm_learning_rate: 0.0001
+
+    kl_annealer:
+      class_path: src.variational.kl_annealing.KLAnnealer
+      init_args:
+        total_steps: 10000
+        n_cycle: 4
+        ratio_increase: 0.25
+        ratio_zero: 0.5
+        max_kl_weight: 0.5
 
 data:
   class_path: src.data.TextDataModule
