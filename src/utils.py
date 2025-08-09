@@ -37,22 +37,25 @@ def log_gaussian(
         -0.5 * torch.log(2 * math.pi) - logvar / 2 - (z - mu) ** 2 / (2 * logvar.exp())
     )
     return log_p.sum(dim=-1)
-    
-def ids_to_text_list(ids: torch.Tensor, pad_id=None, bos_id=None, eos_id=None) -> list[str]:
+
+
+def ids_to_text_list(
+    ids: torch.Tensor, pad_id=None, bos_id=None, eos_id=None
+) -> list[str]:
     """Convert batch of token ids to whitespace-joined strings.
-    
+
     Args:
         ids: Tensor of token IDs with shape [batch_size, seq_len]
         pad_id: ID of PAD token to skip (optional)
-        bos_id: ID of BOS token to skip (optional) 
+        bos_id: ID of BOS token to skip (optional)
         eos_id: ID of EOS token to stop at (optional)
-        
+
     Returns:
         List of text strings, one per batch item
     """
     ids = ids.detach().cpu()
     texts: list[str] = []
-    
+
     for row in ids:
         tokens: list[str] = []
         for tid in row.tolist():
@@ -63,6 +66,6 @@ def ids_to_text_list(ids: torch.Tensor, pad_id=None, bos_id=None, eos_id=None) -
             if eos_id is not None and tid == eos_id:
                 break
             tokens.append(str(tid))
-        texts.append(' '.join(tokens))
-    
+        texts.append(" ".join(tokens))
+
     return texts

@@ -239,7 +239,7 @@ class DecoderModel(L.LightningModule):
                 seq_tensor = torch.tensor(
                     [beam.sequence], device=device, dtype=torch.long
                 )
-                memory_batch = memory[:, batch_idx:batch_idx + 1]
+                memory_batch = memory[:, batch_idx : batch_idx + 1]
 
                 embedded = self._embed_and_condition(seq_tensor, memory_batch)
                 causal_mask = self._get_causal_mask(seq_tensor.size(1), device)
@@ -332,14 +332,14 @@ class DecoderModel(L.LightningModule):
         if active_mask is not None and active_mask.any():
             active_embedded = embedded[active_mask]
             active_memory = memory[:, active_mask]
-            
+
             active_dec_out = self.transformer(
                 tgt=active_embedded.permute(1, 0, 2),
                 memory=active_memory,
                 tgt_mask=causal_mask,
                 tgt_is_causal=True,
             ).permute(1, 0, 2)
-            
+
             dec_out = torch.zeros_like(embedded)
             dec_out[active_mask] = active_dec_out
 
@@ -350,7 +350,7 @@ class DecoderModel(L.LightningModule):
                 tgt_mask=causal_mask,
                 tgt_is_causal=True,
             ).permute(1, 0, 2)
-            
+
         return dec_out
 
     def _get_causal_mask(self, seq_len: int, device: torch.device) -> torch.Tensor:

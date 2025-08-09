@@ -9,7 +9,9 @@ class TestLogProb:
 
     @pytest.fixture
     def logprob(self):
-        return LogProb(ignore_index=0, cls_id=0, kl_weight=1.0, nll_weight=1.0, mi_weight=1.0)
+        return LogProb(
+            ignore_index=0, cls_id=0, kl_weight=1.0, nll_weight=1.0, mi_weight=1.0
+        )
 
     @pytest.fixture
     def ebm(self):

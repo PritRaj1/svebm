@@ -51,7 +51,13 @@ class TestModelSteps:
             num_gmm_components=3,
         )
         loss_struct = LogProb(ignore_index=0, cls_id=0)
-        kl_annealer = KLAnnealer(total_steps=100, n_cycle=2, ratio_increase=0.25, ratio_zero=0.5, max_kl_weight=0.5)
+        kl_annealer = KLAnnealer(
+            total_steps=100,
+            n_cycle=2,
+            ratio_increase=0.25,
+            ratio_zero=0.5,
+            max_kl_weight=0.5,
+        )
 
         model = SVEBM(
             ebm_model=ebm,
@@ -67,18 +73,22 @@ class TestModelSteps:
         )
         return model
 
-    def _synthetic_batch(self, model, batch_size=4, seq_len=12, input_dim=32, vocab_size=50):
+    def _synthetic_batch(
+        self, model, batch_size=4, seq_len=12, input_dim=32, vocab_size=50
+    ):
         x = torch.randn(batch_size, seq_len, input_dim)
         targets = torch.randint(0, vocab_size, (batch_size, seq_len - 1))
         tgt_probs = torch.softmax(
-            torch.randn(batch_size, model.ebm.num_latent_samples, model.ebm.num_gmm_components),
+            torch.randn(
+                batch_size, model.ebm.num_latent_samples, model.ebm.num_gmm_components
+            ),
             dim=-1,
         )
         return {
-            'encoder_inputs': x,
-            'inputs': targets,
-            'targets': targets,
-            'tgt_probs': tgt_probs,
+            "encoder_inputs": x,
+            "inputs": targets,
+            "targets": targets,
+            "tgt_probs": tgt_probs,
         }
 
     def test_training_validation_testing_steps(self, model_fixture):

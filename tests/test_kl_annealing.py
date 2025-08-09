@@ -3,6 +3,7 @@ import numpy as np
 
 from src.variational.kl_annealing import KLAnnealer
 
+
 class TestKLAnnealer:
 
     @pytest.fixture
@@ -31,7 +32,9 @@ class TestKLAnnealer:
         period = int(basic_annealer.total_steps / basic_annealer.n_cycle)
 
         zero_end = int(period * basic_annealer.ratio_zero)
-        inc_end = int(period * (basic_annealer.ratio_zero + basic_annealer.ratio_increase))
+        inc_end = int(
+            period * (basic_annealer.ratio_zero + basic_annealer.ratio_increase)
+        )
 
         zero_seg = sched[:zero_end]
         inc_seg = sched[zero_end:inc_end]
@@ -43,9 +46,9 @@ class TestKLAnnealer:
         assert np.allclose(max_seg, basic_annealer.max_kl_weight, atol=1e-8)
 
         start = period
-        zero_seg2 = sched[start:start + zero_end]
-        inc_seg2 = sched[start + zero_end:start + inc_end]
-        max_seg2 = sched[start + inc_end:start + period]
+        zero_seg2 = sched[start : start + zero_end]
+        inc_seg2 = sched[start + zero_end : start + inc_end]
+        max_seg2 = sched[start + inc_end : start + period]
 
         assert np.allclose(zero_seg2, basic_annealer.min_kl_weight, atol=1e-8)
         if len(inc_seg2) > 1:

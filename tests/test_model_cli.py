@@ -15,15 +15,15 @@ class TestModelCLI:
             datamodule_class=None,
             save_config_callback=None,
             run=False,
-            args=[f"--config={config_path}"]
+            args=[f"--config={config_path}"],
         )
 
         assert cli.model is not None
-        assert hasattr(cli.model, 'enc') and cli.model.enc is not None
-        assert hasattr(cli.model, 'dec') and cli.model.dec is not None
-        assert hasattr(cli.model, 'ebm') and cli.model.ebm is not None
+        assert hasattr(cli.model, "enc") and cli.model.enc is not None
+        assert hasattr(cli.model, "dec") and cli.model.dec is not None
+        assert hasattr(cli.model, "ebm") and cli.model.ebm is not None
 
-        assert hasattr(cli.model, 'kl_annealer')
+        assert hasattr(cli.model, "kl_annealer")
         assert cli.model.kl_annealer is not None
 
         assert cli.datamodule is not None
