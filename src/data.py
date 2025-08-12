@@ -40,6 +40,13 @@ class TextDataModule(L.LightningDataModule):
         self.auto_detect_dim = auto_detect_dim
         self.collate_fn = collate_fn
 
+        if val_split < 0 or test_split < 0:
+            raise ValueError("val_split and test_split must be non-negative")
+
+        if isinstance(val_split, float) and isinstance(test_split, float):
+            if val_split + test_split >= 1.0:
+                raise ValueError("val_split + test_split must be less than 1.0")
+
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None

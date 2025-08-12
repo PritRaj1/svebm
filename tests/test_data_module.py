@@ -67,7 +67,12 @@ class TestTextDataModule:
         with pytest.raises(
             ValueError, match="val_split and test_split must be non-negative"
         ):
-            TextDataModule(dataset_cls=mock_dataset_cls, val_split=-0.1, test_split=0.1)
+            TextDataModule(
+                dataset_cls=mock_dataset_cls,
+                dataset_kwargs={"size": 100, "dim": 768},
+                val_split=-0.1,
+                test_split=0.1,
+            )
 
     def test_fit_split(self, mock_dataset_cls):
         datamodule = TextDataModule(
