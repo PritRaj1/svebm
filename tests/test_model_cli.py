@@ -86,8 +86,8 @@ class TestModelCLI:
         assert "logits" in outputs
         assert "z_mu" in outputs
         assert "z_logvar" in outputs
-        assert "cd" in outputs
-        assert "mi" in outputs
+        assert "contrastive_divergence" in outputs
+        assert "mutual_information" in outputs
 
         loss = cli.model.training_step(batch, batch_idx=0)
         assert torch.isfinite(loss).all()

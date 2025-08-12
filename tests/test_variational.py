@@ -225,6 +225,10 @@ class TestVariationalComponents:
         nll = test_logprob.nll_entropy(logits, labels)
         mi = test_logprob.mutual_information(test_ebm, sample_z, cls=False)
 
+        # Store original shapes for assertions
+        original_z_mu_shape = z_mu.shape
+        original_z_logvar_shape = z_logvar.shape
+
         # Dummy probs (matches GMM structure)
         tgt_probs = torch.softmax(
             torch.randn(
@@ -243,8 +247,8 @@ class TestVariationalComponents:
         prior_z = ula_prior(test_ebm, z_e_0)
         prob_neg = test_ebm.ebm_prior(prior_z.detach()).mean()
 
-        assert z_mu.shape == (batch_size, latent_dim)
-        assert z_logvar.shape == (batch_size, latent_dim)
+        assert original_z_mu_shape == (batch_size, latent_dim)
+        assert original_z_logvar_shape == (batch_size, latent_dim)
         assert hidden_st.shape == (batch_size, seq_len, test_encoder.memory_dim)
         assert logits.shape == (batch_size, seq_len - 1, vocab_size)
         assert nll.shape == ()
