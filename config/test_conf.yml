@@ -57,6 +57,7 @@ model:
 
     learning_rate: 0.001
     ebm_learning_rate: 0.0001
+    gen_type: greedy
 
     kl_annealer:
       class_path: src.variational.kl_annealing.KLAnnealer
@@ -85,7 +86,14 @@ data:
     drop_last: false
     seed: 42
     auto_detect_dim: true
-    collate_fn: null
+    collate_fn:
+      class_path: src.collate.create_text_collator
+      init_args:
+        tokenizer_name: bert-base-uncased
+        max_length: 128
+        embed_dim: 768
+        num_latent_samples: 20
+        num_gmm_components: 5
 
 trainer:
   max_epochs: 100

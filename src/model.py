@@ -23,6 +23,7 @@ class SVEBM(L.LightningModule):
         ebm_out_dim: Optional[int] = None,
         kl_annealer: KLAnnealer | None = None,
         ebm_learning_rate: float = 1e-4,
+        gen_type: str = "greedy",
     ):
         super().__init__()
 
@@ -35,8 +36,8 @@ class SVEBM(L.LightningModule):
         self.kl_annealer = kl_annealer
         # Metrics
         self.bleu = BLEUScore(n_gram=4, smooth=True)
-        # Default generation type for test/inference
-        self.gen_type: str = "greedy"
+        # Generation type for test/inference
+        self.gen_type: str = gen_type
 
         if latent_dim is None:
             if hasattr(self.enc, "latent_dim"):
@@ -76,6 +77,11 @@ class SVEBM(L.LightningModule):
         self.data_dim = data_dim
         self.latent_dim = latent_dim
         self.ebm_out_dim = ebm_out_dim
+
+        if hasattr(self.dec, "max_dec_len"):
+            self.max_dec_len = self.dec.max_dec_len
+        else:
+            self.max_dec_len = 50
 
         self.save_hyperparameters(
             ignore=["ebm_model", "encoder_model", "decoder_model"]
@@ -126,12 +132,34 @@ class SVEBM(L.LightningModule):
             return self.kl_annealer.get_weight(step)
         return 1.0
 
+    def _prep_kl_shape(
+        self, z_mu: torch.Tensor, z_logvar: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        z_mu_in = z_mu
+        z_logvar_in = z_logvar
+
+        if z_mu_in.dim() == 2 and getattr(self.ebm, "num_latent_samples", 1) > 1:
+            z_mu_in = (
+                z_mu_in.unsqueeze(1)
+                .expand(-1, self.ebm.num_latent_samples, -1)
+                .contiguous()
+                .view(z_mu_in.size(0), -1)
+            )
+            z_logvar_in = (
+                z_logvar_in.unsqueeze(1)
+                .expand(-1, self.ebm.num_latent_samples, -1)
+                .contiguous()
+                .view(z_logvar_in.size(0), -1)
+            )
+
+        return z_mu_in, z_logvar_in
+
     def forward(self, batch, mode="train", gen_type="greedy"):
         x = batch["encoder_inputs"] if isinstance(batch, dict) else batch
         z_mu, z_logvar, hidden = self.enc(x)
         z = self.loss_struct.reparameterize(z_mu, z_logvar)
 
-        z_prior = ula_prior(self.ebm, torch.randn_like(z))
+        z_prior = ula_prior(self.ebm, torch.randn_like(z).requires_grad_(True))
 
         cd = self.loss_struct.contrastive_loss(self.ebm, z_prior, z)
         mi = self.loss_struct.mutual_information(self.ebm, z)
@@ -159,19 +187,7 @@ class SVEBM(L.LightningModule):
         z_mu_in = outputs["z_mu"]
         z_logvar_in = outputs["z_logvar"]
 
-        if z_mu_in.dim() == 2 and getattr(self.ebm, "num_latent_samples", 1) > 1:
-            z_mu_in = (
-                z_mu_in.unsqueeze(1)
-                .expand(-1, self.ebm.num_latent_samples, -1)
-                .contiguous()
-                .view(z_mu_in.size(0), -1)
-            )
-            z_logvar_in = (
-                z_logvar_in.unsqueeze(1)
-                .expand(-1, self.ebm.num_latent_samples, -1)
-                .contiguous()
-                .view(z_logvar_in.size(0), -1)
-            )
+        z_mu_in, z_logvar_in = self._prep_kl_shape(z_mu_in, z_logvar_in)
 
         kl = self.loss_struct.kl_div(
             self.ebm, batch["tgt_probs"], z_mu_in, z_logvar_in
@@ -198,19 +214,7 @@ class SVEBM(L.LightningModule):
         nll = self.loss_struct.nll_entropy(outputs["logits"], batch["targets"])
         z_mu_in = outputs["z_mu"]
         z_logvar_in = outputs["z_logvar"]
-        if z_mu_in.dim() == 2 and getattr(self.ebm, "num_latent_samples", 1) > 1:
-            z_mu_in = (
-                z_mu_in.unsqueeze(1)
-                .expand(-1, self.ebm.num_latent_samples, -1)
-                .contiguous()
-                .view(z_mu_in.size(0), -1)
-            )
-            z_logvar_in = (
-                z_logvar_in.unsqueeze(1)
-                .expand(-1, self.ebm.num_latent_samples, -1)
-                .contiguous()
-                .view(z_logvar_in.size(0), -1)
-            )
+        z_mu_in, z_logvar_in = self._prep_kl_shape(z_mu_in, z_logvar_in)
         kl = self.loss_struct.kl_div(
             self.ebm, batch["tgt_probs"], z_mu_in, z_logvar_in
         ).mean()
