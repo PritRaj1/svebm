@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import lightning as L
 import torch
@@ -9,47 +9,40 @@ logger = logging.getLogger(__name__)
 
 
 class TextDataModule(L.LightningDataModule):
+    """Data module for text datasets."""
+
     def __init__(
         self,
-        dataset_cls: Callable[..., Dataset],
-        dataset_kwargs: Optional[Dict[str, Any]] = None,
+        dataset_cls,
+        dataset_kwargs: Dict[str, Any],
         batch_size: int = 32,
         num_workers: int = 4,
-        val_split: Union[float, int] = 0.1,
-        test_split: Union[float, int] = 0.1,
-        collate_fn: Optional[Callable] = None,
+        val_split: float = 0.1,
+        test_split: float = 0.1,
         shuffle: bool = True,
         pin_memory: bool = True,
         drop_last: bool = False,
         seed: int = 42,
         auto_detect_dim: bool = True,
+        collate_fn=None,
     ):
         super().__init__()
-
-        if val_split < 0 or test_split < 0:
-            raise ValueError("val_split and test_split must be non-negative")
-
-        if isinstance(val_split, float) and isinstance(test_split, float):
-            if val_split + test_split >= 1.0:
-                raise ValueError("val_split + test_split must be less than 1.0")
-
         self.dataset_cls = dataset_cls
-        self.dataset_kwargs = dataset_kwargs or {}
+        self.dataset_kwargs = dataset_kwargs
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.val_split = val_split
         self.test_split = test_split
-        self.collate_fn = collate_fn
         self.shuffle = shuffle
         self.pin_memory = pin_memory
         self.drop_last = drop_last
         self.seed = seed
         self.auto_detect_dim = auto_detect_dim
+        self.collate_fn = collate_fn
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
-        self.data_dim: Optional[int] = None
 
         self.generator = torch.Generator().manual_seed(self.seed)
 

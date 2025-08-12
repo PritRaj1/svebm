@@ -1,7 +1,6 @@
 """Collate functions for text data processing."""
 
 import torch
-import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
 from typing import List, Dict, Any
 
@@ -54,6 +53,31 @@ class TextCollator:
             param.requires_grad = False
         self.model.eval()
 
+    def _compute_class_probs(self, labels: List[int]) -> torch.Tensor:
+        """Class-conditional probabilities for GMM components."""
+        batch_size = len(labels)
+        device = next(self.model.parameters()).device
+
+        tgt_probs = torch.zeros(
+            batch_size, self.num_latent_samples, self.num_gmm_components, device=device
+        )
+
+        for i, label in enumerate(labels):
+            class_weight = (
+                torch.ones(self.num_gmm_components, device=device) * 0.1
+            )  # Base probability
+            primary_component = label % self.num_gmm_components
+            class_weight[primary_component] = (
+                0.9  # High probability for primary component
+            )
+
+            class_weight = class_weight / class_weight.sum()
+
+            for j in range(self.num_latent_samples):
+                tgt_probs[i, j, :] = class_weight
+
+        return tgt_probs
+
     def __call__(self, batch: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         """Collate batch of raw text samples.
 
@@ -99,13 +123,7 @@ class TextCollator:
         targets = input_ids.clone()
         targets[attention_mask == 0] = self.pad_id  # Ignore tokens
 
-        # TODO: GMM target probabilities (uniform distribution for now)
-        tgt_probs = torch.ones(
-            batch_size,
-            self.num_latent_samples,
-            self.num_gmm_components,
-        )
-        tgt_probs = F.softmax(tgt_probs, dim=-1)
+        tgt_probs = self._compute_class_probs(labels)
 
         return {
             "encoder_inputs": encoder_inputs,
