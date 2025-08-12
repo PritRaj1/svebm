@@ -24,6 +24,9 @@ class SVEBM(L.LightningModule):
         kl_annealer: KLAnnealer | None = None,
         ebm_learning_rate: float = 1e-4,
         gen_type: str = "greedy",
+        posterior_sample_n: int = 1,
+        word_dropout_rate: float = 0.0,
+        beta: float = 0.2,
     ):
         super().__init__()
 
@@ -34,9 +37,10 @@ class SVEBM(L.LightningModule):
         self.learning_rate = learning_rate
         self.ebm_learning_rate = ebm_learning_rate
         self.kl_annealer = kl_annealer
-        # Metrics
+        self.posterior_sample_n = posterior_sample_n
+        self.word_dropout_rate = word_dropout_rate
+        self.beta = beta
         self.bleu = BLEUScore(n_gram=4, smooth=True)
-        # Generation type for test/inference
         self.gen_type: str = gen_type
 
         if latent_dim is None:
@@ -156,54 +160,105 @@ class SVEBM(L.LightningModule):
 
     def forward(self, batch, mode="train", gen_type="greedy"):
         x = batch["encoder_inputs"] if isinstance(batch, dict) else batch
+        posterior_sample_n = (
+            self.posterior_sample_n if self.training else 1
+        )  # Num reparameterized samples
         z_mu, z_logvar, hidden = self.enc(x)
-        z = self.loss_struct.reparameterize(z_mu, z_logvar)
 
-        z_prior = ula_prior(self.ebm, torch.randn_like(z).requires_grad_(True))
+        # Posterior samples
+        if posterior_sample_n > 1:
+            z_mu_sampled = z_mu.repeat(posterior_sample_n, 1)
+            z_logvar_sampled = z_logvar.repeat(posterior_sample_n, 1)
+        else:
+            z_mu_sampled, z_logvar_sampled = z_mu, z_logvar
 
-        cd = self.loss_struct.contrastive_loss(self.ebm, z_prior, z)
-        mi = self.loss_struct.mutual_information(self.ebm, z)
+        z = self.loss_struct.reparameterize(z_mu_sampled, z_logvar_sampled)
+
+        # Prior samples
+        prior_initialization = torch.randn(
+            z_mu.size(0), z_mu.size(1), device=z_mu.device
+        )
+        z_prior = ula_prior(self.ebm, prior_initialization.requires_grad_(True))
+
+        contrastive_divergence = self.loss_struct.contrastive_loss(self.ebm, z_prior, z)
+        mutual_information = self.loss_struct.mutual_information(self.ebm, z)
 
         if mode in ("train", "val"):
-            logits = self.dec(batch["inputs"], hidden, mode="TEACH_FORCE")
+            inputs = batch["inputs"]
+            targets = batch["targets"]
+
+            if self.word_dropout_rate > 0.0 and self.training:
+                prob = torch.rand(inputs.size(), device=inputs.device)
+
+                # Don't dropout special tokens
+                special_mask = (
+                    (inputs == 1) | (inputs == 0) | (inputs == 2)  # BOS  # PAD  # EOS
+                )
+                prob[special_mask] = 1.0
+
+                inputs_copy = inputs.clone()
+                inputs_copy[prob < self.word_dropout_rate] = 3  # UNK
+                inputs = inputs_copy
+
+            if posterior_sample_n > 1:
+                inputs = inputs.repeat(posterior_sample_n, 1)
+                targets = targets.repeat(posterior_sample_n, 1)
+
+            logits = self.dec.teacher_force_forward(inputs, hidden)
         else:
-            logits = self.dec(None, hidden, mode="GENERATE", gen_type=gen_type)
+            logits = self.dec.generate(hidden, gen_type)
 
         return {
             "logits": logits,
             "z_mu": z_mu,
             "z_logvar": z_logvar,
             "z": z,
-            "cd": cd,
-            "mi": mi,
+            "z_prior": z_prior,
+            "contrastive_divergence": contrastive_divergence,
+            "mutual_information": mutual_information,
             "hidden": hidden,
+            "targets": targets if mode in ("train", "val") else None,
         }
 
     def training_step(self, batch, batch_idx):
         kl_weight = self.get_kl_weight(self.global_step)
         outputs = self(batch, mode="train")
 
-        nll = self.loss_struct.nll_entropy(outputs["logits"], batch["targets"])
-        z_mu_in = outputs["z_mu"]
-        z_logvar_in = outputs["z_logvar"]
+        reconstruction_loss = self.loss_struct.nll_entropy(
+            outputs["logits"], outputs["targets"]
+        )
 
-        z_mu_in, z_logvar_in = self._prep_kl_shape(z_mu_in, z_logvar_in)
+        kl_divergence = self.loss_struct.simple_kl_div(
+            outputs["z_mu"], outputs["z_logvar"]
+        )
 
-        kl = self.loss_struct.kl_div(
-            self.ebm, batch["tgt_probs"], z_mu_in, z_logvar_in
-        ).mean()
+        posterior_energy = self.ebm.ebm_prior(outputs["z"]).mean()
+        prior_energy = self.ebm.ebm_prior(outputs["z_prior"]).mean()
 
         total_loss = (
-            nll
-            + kl_weight * (kl - outputs["cd"])
-            - self.loss_struct.mi_weight * outputs["mi"]
+            reconstruction_loss
+            + kl_weight * (kl_divergence - posterior_energy + prior_energy)
+            - self.loss_struct.mi_weight * outputs["mutual_information"]
         )
 
         self.log("train_loss", total_loss, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("train_nll", nll, on_step=True, on_epoch=True)
-        self.log("train_kl", kl, on_step=True, on_epoch=True)
-        self.log("train_cd", outputs["cd"], on_step=True, on_epoch=True)
-        self.log("train_mi", outputs["mi"], on_step=True, on_epoch=True)
+        self.log(
+            "train_reconstruction_loss",
+            reconstruction_loss,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log("train_kl_divergence", kl_divergence, on_step=True, on_epoch=True)
+        self.log(
+            "train_posterior_energy", posterior_energy, on_step=True, on_epoch=True
+        )
+        self.log("train_prior_energy", prior_energy, on_step=True, on_epoch=True)
+        self.log(
+            "train_mutual_information",
+            outputs["mutual_information"],
+            on_step=True,
+            on_epoch=True,
+        )
         self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
 
         return total_loss
@@ -211,25 +266,37 @@ class SVEBM(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         outputs = self(batch, mode="val")
 
-        nll = self.loss_struct.nll_entropy(outputs["logits"], batch["targets"])
-        z_mu_in = outputs["z_mu"]
-        z_logvar_in = outputs["z_logvar"]
-        z_mu_in, z_logvar_in = self._prep_kl_shape(z_mu_in, z_logvar_in)
-        kl = self.loss_struct.kl_div(
-            self.ebm, batch["tgt_probs"], z_mu_in, z_logvar_in
-        ).mean()
-
-        # Use full weight (no anneal) for kl and cd during test_step
-        total_loss = (
-            nll + (kl - outputs["cd"]) - self.loss_struct.mi_weight * outputs["mi"]
+        reconstruction_loss = self.loss_struct.nll_entropy(
+            outputs["logits"], outputs["targets"]
         )
-        perplexity = torch.exp(nll)
+        kl_divergence = self.loss_struct.simple_kl_div(
+            outputs["z_mu"], outputs["z_logvar"]
+        )
+
+        posterior_energy = self.ebm.ebm_prior(outputs["z"]).mean()
+        prior_energy = self.ebm.ebm_prior(outputs["z_prior"]).mean()
+
+        # Use full weight (no anneal) for validation
+        total_loss = (
+            reconstruction_loss
+            + (kl_divergence - posterior_energy + prior_energy)
+            - self.loss_struct.mi_weight * outputs["mutual_information"]
+        )
+        perplexity = torch.exp(reconstruction_loss)
 
         self.log("val_loss", total_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_nll", nll, on_step=False, on_epoch=True)
-        self.log("val_kl", kl, on_step=False, on_epoch=True)
-        self.log("val_cd", outputs["cd"], on_step=False, on_epoch=True)
-        self.log("val_mi", outputs["mi"], on_step=False, on_epoch=True)
+        self.log(
+            "val_reconstruction_loss", reconstruction_loss, on_step=False, on_epoch=True
+        )
+        self.log("val_kl_divergence", kl_divergence, on_step=False, on_epoch=True)
+        self.log("val_posterior_energy", posterior_energy, on_step=False, on_epoch=True)
+        self.log("val_prior_energy", prior_energy, on_step=False, on_epoch=True)
+        self.log(
+            "val_mutual_information",
+            outputs["mutual_information"],
+            on_step=False,
+            on_epoch=True,
+        )
         self.log(
             "val_perplexity", perplexity, on_step=False, on_epoch=True, prog_bar=True
         )

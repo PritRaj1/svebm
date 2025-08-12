@@ -232,12 +232,10 @@ class TestVariationalComponents:
             ),
             dim=-1,
         )
-        z_mu_mult_k = z_mu.unsqueeze(1).expand(-1, test_ebm.num_latent_samples, -1)
-        z_logvar_mult_k = z_logvar.unsqueeze(1).expand(
-            -1, test_ebm.num_latent_samples, -1
-        )
+        z_mu = z_mu.unsqueeze(1).expand(-1, test_ebm.num_latent_samples, -1)
+        z_logvar = z_logvar.unsqueeze(1).expand(-1, test_ebm.num_latent_samples, -1)
         zkl = test_logprob.kl_div(
-            test_ebm, tgt_probs=tgt_probs, mean=z_mu_mult_k, logvar=z_logvar_mult_k
+            test_ebm, tgt_probs=tgt_probs, mean=z_mu, logvar=z_logvar
         )
         prob_pos = test_ebm.ebm_prior(sample_z).mean()
 
