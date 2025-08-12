@@ -72,10 +72,9 @@ data:
   class_path: src.data.TextDataModule
 
   init_args:
-    dataset_cls: datasets.load_dataset
+    dataset_cls: tests.test_model_cli.MockTextDataset
     dataset_kwargs:
-      path: imdb
-      split: train
+      size: 1000
       
     batch_size: 32
     num_workers: 4
