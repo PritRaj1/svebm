@@ -1,11 +1,28 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 import lightning as L
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_class_path(class_path: Union[str, Callable]) -> Callable:
+    """Resolve a class path string to the actual class (fix yml parsing)."""
+    if callable(class_path):
+        return class_path
+
+    if isinstance(class_path, str):
+        if "." in class_path:
+            module_path, class_name = class_path.rsplit(".", 1)
+            try:
+                module = __import__(module_path, fromlist=[class_name])
+                return getattr(module, class_name)
+            except (ImportError, AttributeError) as e:
+                raise ValueError(f"Could not import {class_path}: {e}")
+        else:
+            raise ValueError(f"Invalid class path format: {class_path}")
 
 
 class TextDataModule(L.LightningDataModule):
@@ -102,6 +119,10 @@ class TextDataModule(L.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Called on every process in Lightning's DDPStrategy."""
+
+        # Resolve dataset_cls if parsed string
+        if isinstance(self.dataset_cls, str):
+            self.dataset_cls = _resolve_class_path(self.dataset_cls)
 
         # Training splits
         if stage == "fit" or stage is None:
