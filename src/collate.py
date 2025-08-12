@@ -97,7 +97,7 @@ class TextCollator:
             decoder_inputs = decoder_inputs  # Just BOS token
 
         targets = input_ids.clone()
-        targets[attention_mask == 0] = self.pad_id # Ignore tokens
+        targets[attention_mask == 0] = self.pad_id  # Ignore tokens
 
         # TODO: GMM target probabilities (uniform distribution for now)
         tgt_probs = torch.ones(

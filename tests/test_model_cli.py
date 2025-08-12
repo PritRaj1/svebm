@@ -16,7 +16,7 @@ class MockTextDataset(Dataset):
             f"It contains some words for testing the model pipeline."
             for i in range(size)
         ]
-        self.labels = [i % 2 for i in range(size)] # One hot binary
+        self.labels = [i % 2 for i in range(size)]  # One hot binary
 
     def __len__(self):
         return self.size
