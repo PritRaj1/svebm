@@ -19,12 +19,12 @@ def ula_prior(ebm: EBM_fcn, z: torch.Tensor) -> torch.Tensor:
     sqrt_eta = eta**0.5
 
     z = z.clone().detach().requires_grad_(True)
-    
+
     for _ in range(N):
         energy = ebm(z).sum()
-    
-        grad = torch.autograd.grad(energy, z, only_inputs=True, retain_graph=False)[0]        
+
+        grad = torch.autograd.grad(energy, z, only_inputs=True, retain_graph=False)[0]
         noise = torch.randn_like(z, requires_grad=True)
-        z = z - 0.5 * eta * grad + sqrt_eta * noise        
+        z = z - 0.5 * eta * grad + sqrt_eta * noise
 
     return z.detach()

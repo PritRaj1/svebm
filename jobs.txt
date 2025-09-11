@@ -1,0 +1,5 @@
+# Training Job Configs for SV-EBM
+# Each line is the Lightning CLI arguments to override the base config
+
+--model.learning_rate=0.001 --model.ebm_learning_rate=0.0001 --trainer.max_epochs=10 --model.ebm_model.init_args.num_latent_samples=10 --model.ebm_model.init_args.num_gmm_components=3
+--model.learning_rate=0.005 --model.ebm_learning_rate=0.0005 --trainer.max_epochs=10 --model.ebm_model.init_args.num_latent_samples=10 --model.ebm_model.init_args.num_gmm_components=3

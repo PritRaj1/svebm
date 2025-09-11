@@ -1,5 +1,5 @@
 # svebm
-Unsupervised meta-learning model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), with Lightning and Transformer layers.
+Unsupervised model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), scrapped together with lightning and dynamo.
 
 ## Setup
 

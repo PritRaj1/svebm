@@ -178,7 +178,9 @@ class SVEBM(L.LightningModule):
         prior_initialization = torch.randn(
             z_mu.size(0), z_mu.size(1), device=z_mu.device
         )
-        z_prior = ula_prior(self.ebm, prior_initialization.requires_grad_(True))
+
+        with torch.enable_grad():
+            z_prior = ula_prior(self.ebm, prior_initialization.requires_grad_(True))
 
         contrastive_divergence = self.loss_struct.contrastive_loss(self.ebm, z_prior, z)
         mutual_information = self.loss_struct.mutual_information(self.ebm, z)
