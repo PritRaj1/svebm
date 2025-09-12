@@ -205,6 +205,7 @@ class SVEBM(L.LightningModule):
             if posterior_sample_n > 1:
                 inputs = inputs.repeat(posterior_sample_n, 1)
                 targets = targets.repeat(posterior_sample_n, 1)
+                hidden = hidden.repeat(posterior_sample_n, 1, 1)
 
             logits = self.dec.teacher_force_forward(inputs, hidden)
         else:

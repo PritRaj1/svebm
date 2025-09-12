@@ -138,7 +138,8 @@ class DecoderModel(L.LightningModule):
         embedded = self._embed_and_condition(inputs, memory)
 
         causal_mask = self._get_causal_mask(inputs.size(1), inputs.device)
-        memory = memory.permute(1, 0, 2)
+        if memory.dim() == 3:
+            memory = memory.permute(1, 0, 2)
         dec_out = self._transformer_forward(embedded, memory, causal_mask)
 
         return self.output_layer(dec_out)

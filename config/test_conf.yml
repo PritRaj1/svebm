@@ -1,19 +1,18 @@
 model:
   class_path: src.model.SVEBM
-
   init_args:
     data_dim: 768
-    latent_dim: 128
+    latent_dim: 64
     
     ebm_model:
       class_path: src.ebm.ebm_model.EBM_fcn
       init_args:
-        latent_dim: 128
-        num_classes: 10
-        hidden_layers: [256, 128]
+        latent_dim: 64
+        num_classes: 2
+        hidden_layers: [128, 64]
         activation: relu
-        num_latent_samples: 20
-        num_gmm_components: 5
+        num_latent_samples: 5
+        num_gmm_components: 2
         eta: 1.0
         N: 1
 
@@ -21,10 +20,10 @@ model:
       class_path: src.variational.encoder_model.EncoderModel
       init_args:
         input_dim: 768
-        memory_dim: 128
-        latent_dim: 128
-        hidden_layers: [256, 128]
-        nhead: 8
+        memory_dim: 64
+        latent_dim: 64
+        hidden_layers: [128, 64]
+        nhead: 4
         dropout: 0.1
         activation: relu
         pad_id: 0
@@ -34,13 +33,13 @@ model:
       init_args:
         vocab_size: 30522
         embed_size: 768
-        latent_dim: 128
-        memory_dim: 128
-        hidden_layers: [128, 256]
-        nhead: 8
+        latent_dim: 64
+        memory_dim: 64
+        hidden_layers: [64, 128]
+        nhead: 4
         dropout: 0.1
         activation: relu
-        max_dec_len: 50
+        max_dec_len: 20
         pad_id: 0
         bos_id: 1
         eos_id: 2
@@ -52,36 +51,35 @@ model:
       init_args:
         ignore_index: 0
         cls_id: 0
-        kl_weight: 1.0
+        kl_weight: 0.1
         nll_weight: 1.0
 
-    learning_rate: 0.001
-    ebm_learning_rate: 0.0001
+    learning_rate: 0.01
+    ebm_learning_rate: 0.001
     gen_type: greedy
 
     kl_annealer:
       class_path: src.variational.kl_annealing.KLAnnealer
       init_args:
-        total_steps: 10000
-        n_cycle: 4
-        ratio_increase: 0.25
+        total_steps: 100
+        n_cycle: 1
+        ratio_increase: 0.5
         ratio_zero: 0.5
-        max_kl_weight: 0.5
+        max_kl_weight: 0.1
 
 data:
-  class_path: src.data.TextDataModule
-
+  class_path: src.data.data_module.TextDataModule
   init_args:
     dataset_cls: tests.test_model_cli.MockTextDataset
     dataset_kwargs:
-      size: 1000
+      size: 100
       
-    batch_size: 32
-    num_workers: 4
-    val_split: 0.1
-    test_split: 0.1
+    batch_size: 8
+    num_workers: 2
+    val_split: 0.2
+    test_split: 0.2
     shuffle: true
-    pin_memory: true
+    pin_memory: false
     drop_last: false
     seed: 42
     auto_detect_dim: true
@@ -89,13 +87,16 @@ data:
       class_path: src.collate.create_text_collator
       init_args:
         tokenizer_name: bert-base-uncased
-        max_length: 128
+        max_length: 64
         embed_dim: 768
-        num_latent_samples: 20
-        num_gmm_components: 5
+        num_latent_samples: 5
+        num_gmm_components: 2
 
 trainer:
-  max_epochs: 100
+  max_epochs: 5
   accelerator: auto
   devices: auto
-  precision: 16-mixed 
+  precision: 32
+  limit_train_batches: 10
+  limit_val_batches: 5
+  limit_test_batches: 5

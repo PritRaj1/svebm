@@ -10,7 +10,7 @@ help:
 	@echo "  logs     - View latest test log"
 	@echo "  clear-logs - Remove all log files"
 	@echo "  dev      - Start development session"
-	@echo "  train    - Run sequential training jobs from jobs.txt"
+	@echo "  train    - Run sequential training jobs (supports vararg JOBS_FILE=jobs.txt)"
 	@echo "  format   - Format code"
 	@echo "  lint     - Run linting"
 	@echo "  help     - Show this help"
@@ -45,6 +45,7 @@ train:
 	@tmux new-session -d -s svebm_sequential -n runner
 	@tmux send-keys -t svebm_sequential:runner "./scripts/train.sh $(if $(JOBS_FILE),$(JOBS_FILE),jobs.txt) 2>&1 | tee logs/sequential_training_$(shell date +%Y%m%d_%H%M%S).log" Enter
 	@echo "Training jobs started in tmux session 'svebm_sequential'"
+	@echo "Jobs file: $(if $(JOBS_FILE),$(JOBS_FILE),jobs.txt)"
 	@echo "Attach with: tmux attach-session -t svebm_sequential"
 	@echo "Sequential training log: logs/sequential_training_$(shell date +%Y%m%d_%H%M%S).log"
 	@echo "Or monitor with: tmux list-sessions"

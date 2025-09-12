@@ -2,7 +2,7 @@
 
 set -e
 
-CONFIG_FILE="${1:-jobs.txt}"
+JOBS_FILE="${1:-jobs.txt}"
 SESSION_NAME="svebm_sequential"
 
 RED='\033[0;31m'
@@ -60,19 +60,42 @@ run_training_job() {
         sleep 2
     fi
     
-    print_status "Running: python main.py fit --config=config/test_conf.yml $job_args"
+    print_status "Running: python main.py fit --config=$CONFIG_FILE $job_args"
     
     mkdir -p logs
 
     tmux new-session -d -s svebm_train -n training
-    tmux send-keys -t svebm_train:training "conda activate SV-EBM && python main.py fit --config=config/test_conf.yml $job_args 2>&1 | tee logs/training_$(date +%Y%m%d_%H%M%S).log" Enter
+    tmux send-keys -t svebm_train:training "conda activate SV-EBM && python main.py fit --config=$CONFIG_FILE $job_args 2>&1 | tee logs/training_$(date +%Y%m%d_%H%M%S).log" Enter
     
     wait_for_training_completion
     
     print_success "Job $job_num/$total_jobs completed"
 }
 
-load_config() {
+    
+extract_config_file() {
+    local config_file="$1"
+    
+    if [[ ! -f "$config_file" ]]; then
+        print_error "Configuration file '$config_file' not found"
+        exit 1
+    fi
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "${line// }" ]]; then
+            continue
+        fi
+        
+        if [[ "$line" =~ ^CONFIG_FILE=(.+)$ ]]; then
+            echo "${BASH_REMATCH[1]}"
+            return
+        fi
+    done < "$config_file"
+    
+    echo "config/test_conf.yml"
+}
+
+load_jobs() {
     local config_file="$1"
     
     if [[ ! -f "$config_file" ]]; then
@@ -81,17 +104,16 @@ load_config() {
     fi
     
     local jobs=()
-    local line_num=0
     
     while IFS= read -r line || [[ -n "$line" ]]; do
-        ((line_num++))
-        
-        # Skip comments and empty lines
         if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "${line// }" ]]; then
             continue
         fi
         
-        # Trim whitespace
+        if [[ "$line" =~ ^CONFIG_FILE= ]]; then
+            continue
+        fi
+        
         line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
         if [[ -n "$line" ]]; then
@@ -103,15 +125,18 @@ load_config() {
         echo "$job"
     done
 }
-    
+
 main() {
     print_status "SV-EBM Sequential Training Runner"
-    print_status "Configuration file: $CONFIG_FILE"
+    print_status "Jobs file: $JOBS_FILE"
+    
+    CONFIG_FILE=$(extract_config_file "$JOBS_FILE")
+    print_status "Base config: $CONFIG_FILE"
     
     local jobs
-    local config_output
-    config_output=$(load_config "$CONFIG_FILE")
-    mapfile -t jobs <<< "$config_output"
+    local jobs_output
+    jobs_output=$(load_jobs "$JOBS_FILE")
+    mapfile -t jobs <<< "$jobs_output"
     
     local total_jobs=${#jobs[@]}
     

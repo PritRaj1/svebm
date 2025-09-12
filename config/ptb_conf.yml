@@ -1,0 +1,104 @@
+model:
+  class_path: src.model.SVEBM
+  init_args:
+    data_dim: 768
+    latent_dim: 256
+    
+    ebm_model:
+      class_path: src.ebm.ebm_model.EBM_fcn
+      init_args:
+        latent_dim: 256
+        num_classes: 10
+        hidden_layers: [512, 256, 128]
+        activation: relu
+        num_latent_samples: 50
+        num_gmm_components: 10
+        eta: 0.1
+        N: 10
+
+    encoder_model:
+      class_path: src.variational.encoder_model.EncoderModel
+      init_args:
+        input_dim: 768
+        memory_dim: 256
+        latent_dim: 256
+        hidden_layers: [512, 256, 128]
+        nhead: 8
+        dropout: 0.2
+        activation: relu
+        pad_id: 0
+
+    decoder_model:
+      class_path: src.variational.decoder_model.DecoderModel
+      init_args:
+        vocab_size: 35
+        embed_size: 768
+        latent_dim: 256
+        memory_dim: 256
+        hidden_layers: [256, 512, 768]
+        nhead: 8
+        dropout: 0.2
+        activation: relu
+        max_dec_len: 128
+        pad_id: 0
+        bos_id: 1
+        eos_id: 2
+        unk_id: 3
+        concat_latent: false
+
+    loss_struct:
+      class_path: src.criterion.LogProb
+      init_args:
+        ignore_index: 0
+        cls_id: 0
+        kl_weight: 1.0
+        nll_weight: 1.0
+
+    learning_rate: 0.0001
+    ebm_learning_rate: 0.00001
+    gen_type: beam
+    posterior_sample_n: 5
+
+    kl_annealer:
+      class_path: src.variational.kl_annealing.KLAnnealer
+      init_args:
+        total_steps: 50000
+        n_cycle: 5
+        ratio_increase: 0.1
+        ratio_zero: 0.3
+        max_kl_weight: 1.0
+
+data:
+  class_path: src.data.TextDataModule
+  init_args:
+    dataset_cls: src.data.ptb_data.PTBDataset
+    dataset_kwargs:
+      data_dir: data/ptb
+      split: train
+      max_length: 128
+      vocab_size: 35
+      download: true
+      
+    batch_size: 32
+    num_workers: 8
+    val_split: 0.0
+    test_split: 0.0
+    shuffle: true
+    pin_memory: true
+    drop_last: false
+    seed: 42
+    auto_detect_dim: true
+    collate_fn: null
+
+trainer:
+  max_epochs: 100
+  accelerator: auto
+  devices: auto
+  precision: 16-mixed
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 2
+  val_check_interval: 0.5
+  log_every_n_steps: 50
+  enable_checkpointing: true
+  enable_progress_bar: true
+  enable_model_summary: true
