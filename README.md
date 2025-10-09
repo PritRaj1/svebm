@@ -1,5 +1,5 @@
 # svebm
-Unsupervised model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), scrapped together with lightning and dynamo. This repo does nothing, it's just for prototyping.
+Unsupervised model from [Pang et al](https://openreview.net/forum?id=-pLftu7EpXz), with lightning and dynamo. This repo does nothing, it's just for prototyping.
 
 ## Setup
 
